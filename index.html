@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Center Pet - Pimenta Bueno</title>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
+            authDomain: "birdselect-d96b8.firebaseapp.com",
+            projectId: "birdselect-d96b8",
+            storageBucket: "birdselect-d96b8.firebasestorage.app",
+            messagingSenderId: "758168536506",
+            appId: "1:758168536506:web:26cebc129c97b6da5b8983"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const productsCol = collection(db, "produtos");
+        const catsCol = collection(db, "categorias");
+        const configDoc = doc(db, "configuracao", "geral");
+
+        let cart = [];
+        let photoBase64 = "";
+        let editingId = null;
+        let currentFilter = "Todos";
+        let registeredCategories = [];
+        let appSettings = { logo: "", senha: "admin123" };
+
+        onSnapshot(configDoc, (snap) => { if(snap.exists()) appSettings = snap.data(); renderHeader(); });
+        onSnapshot(catsCol, (snap) => { 
+            registeredCategories = snap.docs.map(d => ({id: d.id, ...d.data()})); 
+            renderNavCategories(); 
+        });
+        onSnapshot(productsCol, (snapshot) => {
+            window.allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            renderProducts();
+        });
+
+        function renderHeader() {
+            const header = document.getElementById('header-ui');
+            const totalItens = cart.reduce((acc, curr) => acc + (curr.qtd || 0), 0);
+            header.innerHTML = `
+                <div onclick="toggleAdmin()" style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1">
+                    ${appSettings.logo ? `<img src="${appSettings.logo}" style="height:45px; width:45px; border-radius:8px; object-fit:cover;">` : ''}
+                    <div style="text-align:left">
+                        <strong style="color:#b71c1c; font-size:20px; display:block">Center Pet</strong>
+                        <small style="font-size:10px; color:#666; font-weight:bold">PIMENTA BUENO - RO</small>
+                    </div>
+                </div>
+                <div id="cart-icon-btn" onclick="showTab('carrinho')" style="position:relative; font-size:28px; padding: 5px 10px; z-index:2000; cursor:pointer">
+                    🛒 <span id="cart-count">${totalItens}</span>
+                </div>
+            `;
+        }
+
+        window.saveProduct = async () => {
+            const btn = document.getElementById('btn-save');
+            const name = document.getElementById('p-name').value;
+            const price = parseFloat(document.getElementById('p-price').value);
+            const cat = document.getElementById('p-cat').value;
+            if(!name || isNaN(price) || !cat) return alert("Preencha os campos obrigatórios!");
+            btn.disabled = true; btn.innerText = "SALVANDO...";
+            const data = {
+                name, price, category: cat,
+                weight: document.getElementById('p-weight').value,
+                unit: document.getElementById('p-unit').value,
+                isPromo: document.getElementById('p-is-promo').checked,
+                promoPrice: parseFloat(document.getElementById('p-promo-price').value || 0),
+                updatedAt: serverTimestamp()
+            };
+            if(photoBase64) data.img = photoBase64;
+            try {
+                if(editingId) await updateDoc(doc(db, "produtos", editingId), data);
+                else { data.createdAt = serverTimestamp(); await addDoc(productsCol, data); }
+                cancelEdit();
+            } catch (e) { alert("Erro ao salvar."); }
+            finally { btn.disabled = false; btn.innerText = "CADASTRAR PRODUTO"; }
+        };
+
+        window.editProd = (id) => {
+            const p = window.allProducts.find(i => i.id === id);
+            editingId = id;
+            document.getElementById('p-name').value = p.name;
+            document.getElementById('p-price').value = p.price;
+            document.getElementById('p-cat').value = p.category;
+            document.getElementById('p-weight').value = p.weight || "";
+            document.getElementById('p-unit').value = p.unit || "kg";
+            document.getElementById('p-is-promo').checked = p.isPromo || false;
+            document.getElementById('p-promo-price').value = p.promoPrice || "";
+            document.getElementById('btn-save').innerText = "ATUALIZAR PRODUTO";
+            document.getElementById('admin-panel').style.display = 'block';
+            window.scrollTo(0,0);
+        };
+
+        window.handleFile = (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const cv = document.createElement('canvas');
+                    const MAX = 600; let w = img.width, h = img.height;
+                    if (w > MAX) { h *= MAX / w; w = MAX; }
+                    cv.width = w; cv.height = h;
+                    cv.getContext("2d").drawImage(img, 0, 0, w, h);
+                    photoBase64 = cv.toDataURL("image/jpeg", 0.7);
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.cancelEdit = () => {
+            editingId = null; photoBase64 = "";
+            document.getElementById('p-form').reset();
+            document.getElementById('btn-save').innerText = "CADASTRAR PRODUTO";
+        };
+
+        window.toggleAdmin = () => {
+            const box = document.getElementById('admin-panel');
+            if(box.style.display === 'none') {
+                const pass = prompt("Senha Master:");
+                if(pass === appSettings.senha) { box.style.display = 'block'; renderProducts(); }
+            } else { box.style.display = 'none'; renderProducts(); }
+        };
+
+        function renderProducts() {
+            const list = document.getElementById('list');
+            if(!window.allProducts) return;
+            const isAdmin = document.getElementById('admin-panel').style.display === 'block';
+            let items = currentFilter === "🔥 PROMOÇÕES" ? window.allProducts.filter(p => p.isPromo) : 
+                        currentFilter !== "Todos" ? window.allProducts.filter(p => p.category === currentFilter) : window.allProducts;
+            list.innerHTML = items.map(p => {
+                const temPromo = p.isPromo && p.promoPrice > 0;
+                return `
+                <div class="card">
+                    ${temPromo ? `<div class="promo-tag">OFERTA</div>` : ''}
+                    <div style="height:120px; background:#f5f5f5"><img src="${p.img || 'https://via.placeholder.com/150'}" style="width:100%; height:100%; object-fit:cover;"></div>
+                    <div class="card-content">
+                        <h4>${p.name} <br><small>${p.weight || ''}${p.unit || ''}</small></h4>
+                        <div style="margin: 8px 0; min-height:40px">
+                            ${temPromo ? `<span style="text-decoration:line-through; font-size:11px; color:#999">R$ ${p.price.toFixed(2)}</span><br><span style="color:#b71c1c; font-weight:800; font-size:18px">R$ ${p.promoPrice.toFixed(2)}</span>` : `<span style="color:#b71c1c; font-weight:800; font-size:18px">R$ ${p.price.toFixed(2)}</span>`}
+                        </div>
+                        <button class="buy-btn" onclick="addToCart('${p.id}', event)">Adicionar</button>
+                        ${isAdmin ? `<div style="display:flex; gap:5px; margin-top:8px">
+                            <button onclick="editProd('${p.id}')" style="flex:1; background:#eee; padding:8px; border:none; border-radius:5px">✏️</button>
+                            <button onclick="if(confirm('Apagar?')) deleteDoc(doc(db, 'produtos', '${p.id}'))" style="flex:1; background:#fee; padding:8px; border:none; border-radius:5px">🗑️</button>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.setFilter = (c) => { currentFilter = c; renderProducts(); renderNavCategories(); };
+        function renderNavCategories() {
+            const cats = ["Todos", "🔥 PROMOÇÕES", ...registeredCategories.map(c => c.name)];
+            document.getElementById('nav-cats').innerHTML = cats.map(c => `<button class="cat-btn ${currentFilter===c?'active':''}" onclick="setFilter('${c}')">${c}</button>`).join('');
+            document.getElementById('p-cat').innerHTML = `<option value="">Categoria...</option>` + registeredCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        }
+
+        window.addToCart = (id, event) => {
+            const p = window.allProducts.find(i => i.id === id);
+            const item = cart.find(i => i.id === id);
+            if (item) item.qtd++; else cart.push({ ...p, qtd: 1 });
+            renderHeader();
+            const b = event.currentTarget; b.innerText = "✓ OK"; b.style.background = "#2e7d32";
+            setTimeout(() => { b.innerText = "Adicionar"; b.style.background = "#b71c1c"; }, 800);
+        };
+
+        window.showTab = (t) => {
+            document.getElementById('loja').style.display = t === 'loja' ? 'block' : 'none';
+            document.getElementById('aba-cart').style.display = t === 'carrinho' ? 'block' : 'none';
+            if(t === 'carrinho') renderCartItems();
+        };
+
+        function renderCartItems() {
+            const container = document.getElementById('cart-list');
+            if (cart.length === 0) { container.innerHTML = "<p style='color:#999; padding:20px'>Carrinho vazio</p>"; return; }
+            let total = 0;
+            container.innerHTML = cart.map((item, index) => {
+                const preco = (item.isPromo && item.promoPrice > 0) ? item.promoPrice : item.price;
+                total += preco * item.qtd;
+                return `<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:10px 0">
+                    <div style="text-align:left"><strong>${item.name}</strong><br><small>${item.qtd}x R$ ${preco.toFixed(2)}</small></div>
+                    <div>R$ ${(preco * item.qtd).toFixed(2)} <button onclick="remove(${index})" style="border:none; background:none; color:red">✕</button></div>
+                </div>`;
+            }).join('') + `<div style="margin-top:15px; font-weight:bold; font-size:18px">Total: R$ ${total.toFixed(2)}</div>`;
+        }
+
+        window.remove = (i) => { cart.splice(i, 1); renderHeader(); renderCartItems(); };
+
+        window.checkoutWhatsApp = () => {
+            if (cart.length === 0) return alert("Carrinho vazio!");
+            let msg = "*PEDIDO - CENTER PET*\n------------------------------\n";
+            let total = 0;
+            cart.forEach(i => {
+                const p = (i.isPromo && i.promoPrice > 0) ? i.promoPrice : i.price;
+                msg += `✅ ${i.qtd}x ${i.name}\n      R$ ${(p * i.qtd).toFixed(2)}\n`;
+                total += p * i.qtd;
+            });
+            msg += `\n------------------------------\n💰 *TOTAL: R$ ${total.toFixed(2)}*`;
+            
+            const url = `https://api.whatsapp.com/send?phone=5569999760742&text=${encodeURIComponent(msg)}`;
+            const win = window.open(url, '_blank');
+            if(!win) window.location.href = url;
+
+            setTimeout(() => {
+                if(confirm("Pedido enviado ao WhatsApp! Deseja limpar o carrinho agora?")) {
+                    cart = []; renderHeader(); showTab('loja');
+                }
+            }, 1000);
+        };
+
+        window.updateLogo = (e) => {
+            const f = e.target.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+                const i = new Image();
+                i.onload = async () => {
+                    const c = document.createElement('canvas'); c.width = 150; c.height = 150;
+                    c.getContext('2d').drawImage(i, 0, 0, 150, 150);
+                    await setDoc(configDoc, { ...appSettings, logo: c.toDataURL('image/png') });
+                    alert("Logo atualizada!");
+                };
+                i.src = ev.target.result;
+            };
+            r.readAsDataURL(f);
+        };
+        window.addCat = async () => {
+            const n = document.getElementById('new-cat-in').value;
+            if(n) { await addDoc(catsCol, {name: n}); document.getElementById('new-cat-in').value = ""; }
+        };
+    </script>
+
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #fafafa; padding-bottom: 80px; }
+        header { background: white; padding: 10px 15px; display: flex; align-items: center; border-bottom: 2px solid #b71c1c; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #cart-count { background: #b71c1c; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; position: absolute; top: 0; right: 0; font-weight: bold; }
+        #nav-cats { display: flex; overflow-x: auto; padding: 10px; gap: 8px; background: white; border-bottom: 1px solid #eee; }
+        .cat-btn { background: #eee; border: none; padding: 8px 15px; border-radius: 20px; white-space: nowrap; font-size: 13px; font-weight: bold; color: #555; }
+        .cat-btn.active { background: #b71c1c; color: white; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        .card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; border: 1px solid #eee; }
+        .promo-tag { position: absolute; top: 5px; left: 5px; background: #d32f2f; color: white; padding: 3px 7px; font-size: 10px; font-weight: bold; border-radius: 3px; z-index: 10; }
+        .card-content { padding: 8px; }
+        .card-content h4 { margin: 0; font-size: 13px; height: 32px; overflow: hidden; line-height: 1.2; }
+        .buy-btn { width: 100%; background: #b71c1c; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .admin-panel { background: white; margin: 10px; padding: 15px; border: 1px solid #b71c1c; border-radius: 10px; }
+        input, select { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 15px; text-align: center; border-top: 1px solid #eee; font-weight: bold; color: #b71c1c; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<header id="header-ui"></header>
+
+<div id="loja">
+    <div id="nav-cats"></div>
+    <div id="admin-panel" class="admin-panel" style="display:none">
+        <h3 style="margin:0 0 10px 0; color:#b71c1c">Painel Administrativo</h3>
+        <form id="p-form">
+            <input type="text" id="p-name" placeholder="Nome do Produto">
+            <select id="p-cat"></select>
+            <div style="display:flex; gap:5px">
+                <input type="number" id="p-price" placeholder="Preço Base">
+                <input type="number" id="p-weight" placeholder="Peso" style="width:70px">
+                <select id="p-unit" style="width:70px"><option value="kg">kg</option><option value="g">g</option><option value="Un">Un</option></select>
+            </div>
+            <label style="font-size:12px; display:block; margin:5px 0"><input type="checkbox" id="p-is-promo"> Ativar Promoção 🔥</label>
+            <input type="number" id="p-promo-price" placeholder="Preço de Oferta">
+            <input type="file" accept="image/*" onchange="handleFile(event)" style="border:none; padding:5px 0">
+            <button type="button" id="btn-save" class="buy-btn" style="background:#333; margin-top:10px" onclick="saveProduct()">CADASTRAR PRODUTO</button>
+        </form>
+        <hr style="margin:15px 0; border:0; border-top:1px solid #eee">
+        <small>Configurações Gerais:</small>
+        <div style="margin-top:5px; font-size:11px">Alterar Logo: <input type="file" accept="image/*" onchange="updateLogo(event)"></div>
+        <div style="display:flex; gap:5px; margin-top:10px">
+            <input type="text" id="new-cat-in" placeholder="Nova Categoria">
+            <button onclick="addCat()" style="background:#b71c1c; color:white; border:none; padding:10px; border-radius:6px">Adicionar</button>
+        </div>
+        <button onclick="toggleAdmin()" style="width:100%; margin-top:15px; background:#666; color:white; border:none; padding:10px; border-radius:6px">Fechar Painel</button>
+    </div>
+    <div class="grid" id="list"></div>
+</div>
+
+<div id="aba-cart" style="display:none; padding:20px; text-align:center">
+    <h3 style="color:#b71c1c">Meu Carrinho</h3>
+    <div id="cart-list" style="background:white; padding:15px; border-radius:10px; border:1px solid #eee; text-align:left"></div>
+    <button class="buy-btn" onclick="checkoutWhatsApp()" style="background:#25d366; margin-top:20px; font-size:16px">Finalizar Pedido (WhatsApp)</button>
+    <button onclick="showTab('loja')" style="background:none; border:none; color:#666; margin-top:15px; font-weight:bold; cursor:pointer">← Continuar Comprando</button>
+</div>
+
+<div class="footer">CENTER PET - PIMENTA BUENO - RO</div>
+
+</body>
+</html>
