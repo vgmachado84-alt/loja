@@ -9,8 +9,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#2d5a27">
-    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/2d5a27/ffffff?text=CP">
-
     <title>Center Pet</title>
 
     <script type="module">
@@ -79,11 +77,8 @@
             document.getElementById('m-title').innerText = selectedProduct.name;
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
             document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
-            
-            // EXIBIR ESTOQUE NO MODAL
             const estoque = selectedProduct.stock || 0;
             document.getElementById('m-stock').innerText = `Estoque disponível: ${estoque} un.`;
-            
             renderVars(); updateModalUI();
             document.getElementById('p-modal').classList.add('active');
         };
@@ -112,22 +107,18 @@
         window.selectVar = (idx) => { selectedVar = selectedProduct.variations[idx]; renderVars(); updateModalUI(); };
         window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
         function renderVars() { document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `<button class="chip ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>`).join(''); }
-        
         window.addTemp = () => { 
             const existing = tempCart.find(i => i.weight === selectedVar.weight);
             if(existing) existing.qty += qty;
             else tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
             qty = 1; updateModalUI(); 
         };
-
         window.confirmToMain = () => { 
             if(tempCart.length > 0) mainCart = [...mainCart, ...tempCart]; 
             else mainCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code }); 
             updateBadge(); document.getElementById('p-modal').classList.remove('active'); 
         };
-
         function updateBadge() { const b = document.getElementById('badge'); b.innerText = mainCart.length; b.style.display = mainCart.length > 0 ? 'flex' : 'none'; }
-        
         window.showMainCart = () => {
             let total = 0;
             document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => { 
@@ -137,14 +128,12 @@
             document.getElementById('total').innerText = total.toFixed(2);
             document.getElementById('c-modal').classList.add('active');
         };
-
         window.updateMainQty = (idx, v) => { mainCart[idx].qty += v; if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); updateBadge(); showMainCart(); };
-        
         window.sendZap = () => {
             const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
             let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { t += `📦 ${i.name} (${i.weight})\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
+            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
             t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
             window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
         };
@@ -152,48 +141,53 @@
 
     <style>
         :root { --green: #2d5a27; }
-        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: calc(145px + env(safe-area-inset-top)); -webkit-tap-highlight-color: transparent; }
-        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; padding-top: env(safe-area-inset-top); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; height: 50px; }
-        #logo { max-height: 45px; max-width: 150px; object-fit: contain; }
+        
+        /* AJUSTE AQUI: Aumentamos o padding para empurrar os produtos para baixo */
+        body { 
+            font-family: sans-serif; 
+            margin: 0; 
+            background: #f8faf9; 
+            padding-top: 185px; /* Empurra os produtos para baixo do cabeçalho */
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
+        #logo { max-height: 45px; max-width: 140px; object-fit: contain; }
         .search-container { padding: 0 15px 10px; }
-        .search-input { width: 100%; padding: 12px 15px; border-radius: 20px; border: 1px solid #eee; background: #f5f5f5; box-sizing: border-box; outline:none; font-size: 16px; }
+        .search-input { width: 100%; padding: 12px 15px; border-radius: 25px; border: 1px solid #eee; background: #f5f5f5; box-sizing: border-box; font-size: 16px; outline: none; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
         .cat-bar::-webkit-scrollbar { display: none; }
         .cat-chip { background: #f0f0f0; border: none; padding: 8px 18px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
         .cat-chip.active { background: var(--green); color: white; }
         
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
-        .card { background: white; border-radius: 12px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; height: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-        .card-img { width: 100%; height: 110px; }
+        /* Margem superior extra na grid para garantir que não corte */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px 12px; }
+        
+        .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .card-img { width: 100%; height: 120px; background: #eee; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
-        .card-body { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; }
-        .card h4 { margin: 0 0 5px 0; font-size: 14px; color: #333; line-height: 1.2; height: 34px; overflow: hidden; }
-        
-        /* AJUSTE A PARTIR DE PULANDO LINHA */
+        .card-body { padding: 10px; display: flex; flex-direction: column; min-height: 80px; }
+        .card h4 { margin: 0 0 8px 0; font-size: 14px; color: #333; line-height: 1.2; height: 34px; overflow: hidden; }
         .price-container { display: flex; flex-direction: column; margin-top: auto; }
-        .price { font-weight: bold; color: var(--green); font-size: 17px; }
-        .a-partir { font-size: 10px; color: #888; margin-bottom: 2px; }
-        
-        .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--green); color: white; border: none; width: 32px; height: 32px; border-radius: 10px; font-size: 20px; }
+        .a-partir { font-size: 11px; color: #888; margin-bottom: 2px; }
+        .price { font-weight: bold; color: var(--green); font-size: 18px; }
+        .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--green); color: white; border: none; width: 35px; height: 35px; border-radius: 12px; font-size: 22px; cursor: pointer; }
 
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; overflow-y: auto; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
-        .qty-control { display: flex; align-items: center; gap: 12px; background: #f0f0f0; padding: 5px 12px; border-radius: 20px; }
-        .qty-control button { border: none; background: none; font-size: 22px; color: var(--green); font-weight: bold; }
-        .btn-buy { background: var(--green); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; }
-        .chip { border: 1px solid #ddd; padding: 8px 14px; border-radius: 8px; background: white; margin: 4px; font-weight: bold; font-size: 13px; }
-        .chip.active { border-color: var(--green); color: var(--green); background: #f0f7f0; }
-        .c-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
-        .badge { position: absolute; top: 0; right: 0; background: red; color: white; font-size: 10px; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
+        .modal-inner { padding: calc(30px + env(safe-area-inset-top)) 20px 40px; }
+        .btn-buy { background: var(--green); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; display: flex; align-items: center; justify-content: center; }
         .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 10px; display: block; }
+        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
+        .btn-fechar { border:none; background:#f0f0f0; border-radius:50%; width:44px; height:44px; font-size: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <header>
         <div class="top-bar">
-            <img id="logo">
-            <button onclick="showMainCart()" style="border:none; background:none; font-size:26px; position:relative;">
+            <img id="logo" src="https://via.placeholder.com/150x50?text=Center+Pet">
+            <button onclick="showMainCart()" style="border:none; background:none; font-size:28px; position:relative; padding: 5px;">
                 🛒<span id="badge" class="badge" style="display:none">0</span>
             </button>
         </div>
@@ -206,38 +200,43 @@
     <div class="grid" id="grid"></div>
 
     <div id="p-modal" class="modal">
-        <button onclick="document.getElementById('p-modal').classList.remove('active')" style="margin:20px; border:none; background:#eee; border-radius:50%; width:44px; height:44px;">✕</button>
-        <div style="padding:0 25px">
-            <img id="m-img" style="width:100%; border-radius:20px; height:220px; object-fit:cover;">
-            <div id="m-code" style="margin-top:15px; color:#888; font-size:12px;"></div>
-            <h2 id="m-title" style="margin:8px 0"></h2>
-            <p id="m-desc" style="color:#666; font-size: 15px; margin-bottom: 10px;"></p>
-            
+        <div class="modal-inner">
+            <button class="btn-fechar" onclick="document.getElementById('p-modal').classList.remove('active')">✕</button>
+            <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
+            <div id="m-code" style="margin-top:15px; color:#999; font-size:12px; letter-spacing: 1px;"></div>
+            <h2 id="m-title" style="margin:10px 0; color: #222;"></h2>
+            <p id="m-desc" style="color:#666; font-size: 15px; line-height: 1.4;"></p>
             <span id="m-stock" class="stock-tag"></span>
-
-            <div id="m-vars" style="margin-bottom:20px; display:flex; flex-wrap:wrap"></div>
+            <div id="m-vars" style="margin: 15px 0; display:flex; flex-wrap:wrap; gap: 8px;"></div>
             <div style="display:flex; align-items:center; justify-content:space-between; background:#f9f9f9; padding:20px; border-radius:18px;">
-                <div class="qty-control"><button onclick="changeQty(-1)">-</button><span id="m-qty">1</span><button onclick="changeQty(1)">+</button></div>
-                <div style="text-align:right"><span id="m-price" style="font-size:24px; font-weight:bold; color:var(--green)"></span></div>
+                <div style="display:flex; align-items:center; gap:15px; background:#eee; padding:8px 15px; border-radius:25px;">
+                    <button onclick="changeQty(-1)" style="border:none; background:none; font-size:24px; color:var(--green); font-weight:bold;">-</button>
+                    <span id="m-qty" style="font-weight:bold; font-size:18px;">1</span>
+                    <button onclick="changeQty(1)" style="border:none; background:none; font-size:24px; color:var(--green); font-weight:bold;">+</button>
+                </div>
+                <div style="text-align:right"><span id="m-price" style="font-size:26px; font-weight:bold; color:var(--green)"></span></div>
             </div>
-            <button onclick="addTemp()" style="width:100%; padding:12px; margin-top:15px; border:1px dashed var(--green); background:none; color:var(--green); font-weight:bold;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list"></div>
-            <div style="text-align:right; font-weight:bold; font-size:22px; margin-top:20px">Total: R$ <span id="m-subtotal">0.00</span></div>
+            <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--green); background:white; color:var(--green); font-weight:bold; border-radius:12px;">+ ADICIONAR OUTRO PESO</button>
+            <div id="m-temp-list" style="margin-top: 15px;"></div>
+            <div style="text-align:right; font-weight:bold; font-size:22px; margin: 20px 0;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
             <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
         </div>
     </div>
 
     <div id="c-modal" class="modal">
-        <div style="padding:20px">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--green)">⬅ VOLTAR</button>
-            <h2>Meu Pedido</h2>
+        <div class="modal-inner">
+            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--green); font-size: 16px;">⬅ VOLTAR</button>
+            <h2 style="margin-top: 15px;">Meu Pedido</h2>
             <div id="cart-list"></div>
-            <div style="display:flex; justify-content:space-between; margin:20px 0; font-size:24px; font-weight:bold">
+            <div style="display:flex; justify-content:space-between; margin:25px 0; font-size:22px; font-weight:bold; border-top: 2px solid #eee; padding-top: 15px;">
                 <span>TOTAL:</span><span style="color:var(--green)">R$ <span id="total">0.00</span></span>
             </div>
-            <input type="text" id="u-nome" class="search-input" style="margin-bottom:10px" placeholder="Seu Nome">
-            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:20px" placeholder="Bairro / Cidade">
-            <button onclick="sendZap()" style="width:100%; padding:20px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px">ENVIAR NO WHATSAPP</button>
+            <input type="text" id="u-nome" class="search-input" style="margin-bottom:12px; border: 1px solid #ddd;" placeholder="Seu Nome">
+            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:20px; border: 1px solid #ddd;" placeholder="Bairro / Cidade">
+            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px; display:flex; align-items:center; justify-content:center; gap:10px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25">
+                ENVIAR NO WHATSAPP
+            </button>
         </div>
     </div>
 </body>
