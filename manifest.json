@@ -8,8 +8,13 @@
   "theme_color": "#ff7800",
   "icons": [
     {
-      "src": "link_da_sua_logo_aqui.png",
+      "src": "COLOQUE_AQUI_O_LINK_DA_SUA_LOGO",
       "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "COLOQUE_AQUI_O_LINK_DA_SUA_LOGO",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
