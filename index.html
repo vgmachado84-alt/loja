@@ -70,7 +70,10 @@
                     <div class="card-img"><img src="${p.img || ''}"></div>
                     <div class="card-body">
                         <h4>${p.name}</h4>
-                        <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
+                        <div class="price-container">
+                            <span class="price-label">A partir de</span>
+                            <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
+                        </div>
                     </div>
                     <button class="add-btn">+</button>
                 </div>`).join('');
@@ -114,7 +117,7 @@
 
         window.updateModalUI = () => {
             document.getElementById('m-qty').innerText = qty;
-            document.getElementById('m-price').innerText = `A partir de R$ ${(selectedVar.price * qty).toFixed(2)}`;
+            document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
             document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
                 <div class="c-item-row">
                     <span><b>${i.weight}</b></span>
@@ -230,7 +233,12 @@
         
         .card-body { padding: 8px; }
         .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
+        
+        /* ESTILO DA FRASE NA VITRINE */
+        .price-container { display: flex; flex-direction: column; }
+        .price-label { font-size: 10px; color: #888; margin-bottom: -2px; }
         .price { color: var(--orange); font-weight: bold; font-size: 16px; }
+        
         .promo-badge { position: absolute; top: 5px; left: 5px; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 5; }
         .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--orange); color: white; border: none; width: 28px; height: 28px; border-radius: 8px; font-size: 20px; }
         
@@ -286,7 +294,7 @@
             
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:10px; border-radius:15px;">
                 <div class="qty-control"><button class="qty-btn" onclick="changeQty(-1)">-</button><span id="m-qty">1</span><button class="qty-btn" onclick="changeQty(1)">+</button></div>
-                <span id="m-price" style="font-size:18px; font-weight:bold; color:var(--orange)"></span>
+                <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
             </div>
 
             <button id="btn-outro-peso" onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px;">+ OUTRO PESO</button>
