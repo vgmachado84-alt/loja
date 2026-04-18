@@ -85,6 +85,13 @@
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
             document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
             document.getElementById('m-stock').innerText = "Estoque: " + (selectedProduct.stock || 0);
+            
+            const temVariosPesos = selectedProduct.variations && selectedProduct.variations.length > 1;
+            document.getElementById('m-vars').style.display = temVariosPesos ? 'flex' : 'none';
+            document.getElementById('btn-outro-peso').style.display = temVariosPesos ? 'block' : 'none';
+            document.getElementById('m-temp-list').style.display = temVariosPesos ? 'block' : 'none';
+            document.getElementById('m-subtotal-area').style.display = temVariosPesos ? 'block' : 'none';
+
             renderVars(); updateModalUI();
             document.getElementById('p-modal').classList.add('active');
         };
@@ -177,9 +184,13 @@
             showMainCart();
         };
 
-        window.shareApp = () => {
+        window.shareProduct = () => {
             if (navigator.share) {
-                navigator.share({ title: 'Center Pet', text: 'Confira os produtos da Center Pet!', url: window.location.href });
+                navigator.share({ 
+                    title: selectedProduct.name, 
+                    text: `Olha só esse produto na Center Pet: ${selectedProduct.name}`, 
+                    url: window.location.href 
+                });
             }
         };
         
@@ -204,25 +215,30 @@
         :root { --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 170px; }
         header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; gap: 10px; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
         #logo { height: 40px; }
         .search-container { padding: 0 15px 10px; }
         .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; outline: none; box-sizing: border-box; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
         .cat-chip { background: #eee; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 13px; white-space: nowrap; }
         .cat-chip.active { background: var(--orange); color: white; }
+        
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
         .card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; position: relative; }
-        .card-img { height: 110px; width: 100%; }
+        .card-img { height: 160px; width: 100%; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
         .card-body { padding: 8px; }
         .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
         .price { color: var(--orange); font-weight: bold; font-size: 16px; }
         .promo-badge { position: absolute; top: 5px; left: 5px; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 5; }
         .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--orange); color: white; border: none; width: 28px; height: 28px; border-radius: 8px; font-size: 20px; }
+        
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
         .modal-inner { padding: 20px; }
+        
+        #m-img { width:100%; border-radius:15px; height:280px; object-fit:cover; }
+
         .var-btn { flex: 1; border: 2px solid #ddd; border-radius: 10px; padding: 10px; background: white; display: flex; flex-direction: column; align-items: center; margin: 4px; min-width: 80px; }
         .var-btn.active { border-color: var(--orange); background: #fff5ee; color: var(--orange); }
         .v-w { font-weight: bold; font-size: 14px; }
@@ -235,17 +251,14 @@
         .c-item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
         .cart-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; gap: 10px; }
         .float-zap { position: fixed; bottom: 20px; right: 20px; background: #25d366; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 3000; }
-        .share-btn { border: none; background: #f0f0f0; padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .share-btn { border: none; background: #f0f0f0; padding: 8px; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #555; }
     </style>
 </head>
 <body>
     <header>
         <div class="top-bar">
             <img id="logo" src="">
-            <div style="display:flex; gap:10px;">
-                <button class="share-btn" onclick="shareApp()">🔗</button>
-                <button onclick="showMainCart()" style="border:none; background:none; font-size:25px; position:relative;">🛒<span id="badge" class="badge">0</span></button>
-            </div>
+            <button onclick="showMainCart()" style="border:none; background:none; font-size:25px; position:relative;">🛒<span id="badge" class="badge">0</span></button>
         </div>
         <div class="search-container"><input type="text" class="search-input" placeholder="Buscar..." oninput="handleSearch(event)"></div>
         <div class="cat-bar" id="cat-bar"></div>
@@ -256,21 +269,32 @@
     <div id="p-modal" class="modal">
         <div class="modal-inner">
             <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px; margin-bottom:10px;">✕</button>
-            <img id="m-img" style="width:100%; border-radius:15px; height:200px; object-fit:cover;">
-            <div style="display:flex; justify-content:space-between; margin-top:10px;">
-                <span id="m-code" style="font-size:12px; color:#888;"></span>
+            <img id="m-img" src="">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="m-code" style="font-size:12px; color:#888;"></span>
+                    <button class="share-btn" onclick="shareProduct()">🔗</button>
+                </div>
                 <span id="m-stock" style="font-size:12px; font-weight:bold; color:var(--orange);"></span>
             </div>
+
             <h2 id="m-title" style="margin:5px 0;"></h2>
             <p id="m-desc" style="color:#666; font-size:14px; margin-bottom:10px;"></p>
+            
             <div id="m-vars" style="display:flex; flex-wrap:wrap; margin-bottom:15px;"></div>
+            
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:10px; border-radius:15px;">
                 <div class="qty-control"><button class="qty-btn" onclick="changeQty(-1)">-</button><span id="m-qty">1</span><button class="qty-btn" onclick="changeQty(1)">+</button></div>
                 <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
             </div>
-            <button onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px;">+ OUTRO PESO</button>
+
+            <button id="btn-outro-peso" onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px;">+ OUTRO PESO</button>
+            
             <div id="m-temp-list" style="margin-top:15px;"></div>
-            <div style="text-align:right; font-weight:bold; font-size:20px; margin-top:15px;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
+            
+            <div id="m-subtotal-area" style="text-align:right; font-weight:bold; font-size:20px; margin-top:15px;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
+            
             <button class="btn-buy" onclick="confirmToMain()">ADICIONAR AO CARRINHO</button>
         </div>
     </div>
