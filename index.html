@@ -93,9 +93,9 @@
             document.getElementById('m-qty').innerText = qty;
             document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
             document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
-                <div class="c-item">
+                <div class="c-item" style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
                     <div style="flex:1"><b>${i.weight}</b> - R$ ${(i.price * i.qty).toFixed(2)}</div>
-                    <div class="qty-control">
+                    <div class="qty-control" style="transform: scale(0.9);">
                         <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
                         <span>${i.qty}</span>
                         <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
@@ -127,7 +127,7 @@
             let total = 0;
             document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => { 
                 total += i.price * i.qty; 
-                return `<div class="c-item"><div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div><div class="qty-control"><button class="qty-btn" onclick="updateMainQty(${idx}, -1)">-</button><span>${i.qty}</span><button class="qty-btn" onclick="updateMainQty(${idx}, 1)">+</button></div><div style="margin-left:10px">R$ ${(i.price * i.qty).toFixed(2)}</div></div>`; 
+                return `<div class="c-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid #eee;"><div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div><div class="qty-control"><button class="qty-btn" onclick="updateMainQty(${idx}, -1)">-</button><span>${i.qty}</span><button class="qty-btn" onclick="updateMainQty(${idx}, 1)">+</button></div><div style="margin-left:10px">R$ ${(i.price * i.qty).toFixed(2)}</div></div>`; 
             }).join('');
             document.getElementById('total').innerText = total.toFixed(2);
             document.getElementById('c-modal').classList.add('active');
@@ -135,13 +135,11 @@
 
         window.updateMainQty = (idx, v) => { mainCart[idx].qty += v; if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); updateBadge(); showMainCart(); };
         
-        // FUNÇÃO WHATSAPP ATUALIZADA COM CÓDIGO DO PRODUTO
         window.sendZap = () => {
             const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
             let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
             mainCart.forEach(i => { 
-                // AQUI FOI INCLUÍDO O CÓDIGO NO ENVIO
                 t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; 
             });
             t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
@@ -152,12 +150,11 @@
     <style>
         :root { --green: #2d5a27; }
         
-        /* AJUSTE DE DISTANCIAMENTO DA VITRINE */
         body { 
             font-family: sans-serif; 
             margin: 0; 
             background: #f8faf9; 
-            padding-top: 190px; /* Garante que os produtos comecem abaixo das categorias nas listagens */
+            padding-top: 200px; 
             -webkit-tap-highlight-color: transparent; 
         }
 
@@ -165,10 +162,10 @@
         .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
         #logo { max-height: 45px; max-width: 140px; object-fit: contain; }
         .search-container { padding: 0 15px 10px; }
-        .search-input { width: 100%; padding: 12px 15px; border-radius: 25px; border: 1px solid #eee; background: #f5f5f5; box-sizing: border-box; font-size: 16px; outline: none; }
+        .search-input { width: 100%; padding: 15px; border-radius: 25px; border: 1px solid #ddd; background: #f5f5f5; box-sizing: border-box; font-size: 18px; outline: none; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
         .cat-bar::-webkit-scrollbar { display: none; }
-        .cat-chip { background: #f0f0f0; border: none; padding: 8px 18px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
+        .cat-chip { background: #f0f0f0; border: none; padding: 10px 20px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 14px; }
         .cat-chip.active { background: var(--green); color: white; }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
@@ -181,32 +178,31 @@
         .a-partir { font-size: 11px; color: #888; margin-bottom: 2px; }
         .price { font-weight: bold; color: var(--green); font-size: 18px; }
         
-        .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--green); color: white; border: none; width: 35px; height: 35px; border-radius: 12px; font-size: 22px; cursor: pointer; }
+        .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--green); color: white; border: none; width: 40px; height: 40px; border-radius: 12px; font-size: 24px; cursor: pointer; }
 
-        /* ESTILO DO MODAL E DO CONTEÚDO CORRIGIDO */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
         .modal-inner { padding: calc(30px + env(safe-area-inset-top)) 20px 40px; }
         
-        /* RESTAURAÇÃO DO DESIGN ORIGINAL DOS BOTÕES DE QUANTIDADE (+ E -) */
-        .qty-control { display: flex; align-items: center; gap: 12px; border: 1px solid #ddd; border-radius: 10px; padding: 5px 10px; }
-        .qty-btn { border: none; background: none; font-size: 22px; color: var(--green); font-weight: bold; cursor: pointer; }
-        .qty-control span { font-weight: bold; font-size: 18px; color: #333; }
+        /* CONTROLE DE QUANTIDADE - GRANDE E ESPAÇADO PARA IDOSOS */
+        .qty-control { display: flex; align-items: center; gap: 20px; background: #f1f1f1; border-radius: 15px; padding: 10px 20px; border: 1px solid #ddd; }
+        .qty-btn { border: none; background: white; font-size: 30px; color: var(--green); font-weight: bold; cursor: pointer; width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
+        .qty-control span { font-weight: bold; font-size: 24px; color: #222; min-width: 30px; text-align: center; }
         
-        /* RESTAURAÇÃO DO DESIGN ORIGINAL DOS BOTÕES DE PESO */
-        .var-btn { border: 1px solid #ddd; padding: 8px 14px; border-radius: 8px; background: white; margin: 4px; font-weight: bold; font-size: 13px; color: #666; cursor: pointer; }
-        .var-btn.active { border-color: var(--green); color: var(--green); background: #f0f7f0; }
+        /* BOTÕES DE PESO - MAIORES E MAIS CLAROS */
+        .var-btn { border: 2px solid #ddd; padding: 15px 20px; border-radius: 12px; background: white; margin: 6px 3px; font-weight: bold; font-size: 16px; color: #444; cursor: pointer; flex: 1; min-width: 100px; text-align: center; }
+        .var-btn.active { border-color: var(--green); color: var(--green); background: #eef7ee; box-shadow: 0 0 0 1px var(--green); }
 
-        .btn-buy { background: var(--green); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 10px; display: block; }
-        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
+        .btn-buy { background: var(--green); color: white; border: none; padding: 22px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 20px; margin-top: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .stock-tag { font-size: 14px; color: #e67e22; font-weight: bold; margin-bottom: 15px; display: block; }
+        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 12px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
     </style>
 </head>
 <body>
     <header>
         <div class="top-bar">
             <img id="logo" src="https://via.placeholder.com/150x50?text=Center+Pet">
-            <button onclick="showMainCart()" style="border:none; background:none; font-size:28px; position:relative; padding: 5px; cursor:pointer;">
+            <button onclick="showMainCart()" style="border:none; background:none; font-size:32px; position:relative; padding: 5px; cursor:pointer;">
                 🛒<span id="badge" class="badge" style="display:none">0</span>
             </button>
         </div>
@@ -220,46 +216,53 @@
 
     <div id="p-modal" class="modal">
         <div class="modal-inner">
-            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#f0f0f0; border-radius:50%; width:40px; height:40px; font-size: 20px; margin-bottom:15px; cursor:pointer;">✕</button>
-            <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
-            <div id="m-code" style="margin-top:15px; color:#999; font-size:12px; letter-spacing: 1px;"></div>
-            <h2 id="m-title" style="margin:10px 0; color: #222;"></h2>
-            <p id="m-desc" style="color:#666; font-size: 15px; line-height: 1.4;"></p>
+            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:50px; height:50px; font-size: 24px; margin-bottom:20px; cursor:pointer; font-weight:bold;">✕</button>
+            
+            <img id="m-img" style="width:100%; border-radius:20px; height:280px; object-fit:cover;">
+            
+            <div id="m-code" style="margin-top:20px; color:#777; font-size:14px; font-weight:bold;"></div>
+            <h2 id="m-title" style="margin:10px 0; color: #111; font-size: 24px;"></h2>
+            <p id="m-desc" style="color:#444; font-size: 17px; line-height: 1.5; margin-bottom: 20px;"></p>
+            
             <span id="m-stock" class="stock-tag"></span>
             
-            <div id="m-vars" style="margin: 15px 0; display:flex; flex-wrap:wrap;"></div>
+            <p style="font-weight:bold; margin-bottom:10px; font-size: 18px;">Selecione o Peso:</p>
+            <div id="m-vars" style="margin-bottom: 25px; display:flex; flex-wrap:wrap; justify-content: space-between;"></div>
             
-            <div style="display:flex; align-items:center; justify-content:space-between; background:#f9f9f9; padding:20px; border-radius:18px; margin-top:20px;">
-                <div class="qty-control">
-                    <button class="qty-btn" onclick="changeQty(-1)">-</button>
-                    <span id="m-qty">1</span>
-                    <button class="qty-btn" onclick="changeQty(1)">+</button>
-                </div>
-                <div style="text-align:right">
-                    <span id="m-price" style="font-size:26px; font-weight:bold; color:var(--green)"></span>
+            <div style="background:#f9f9f9; padding:20px; border-radius:20px; border:1px solid #eee;">
+                <p style="font-weight:bold; margin-bottom:15px; font-size: 18px; text-align: center;">Quantidade:</p>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="changeQty(-1)">-</button>
+                        <span id="m-qty">1</span>
+                        <button class="qty-btn" onclick="changeQty(1)">+</button>
+                    </div>
+                    <div style="text-align:right">
+                        <span id="m-price" style="font-size:30px; font-weight:bold; color:var(--green)"></span>
+                    </div>
                 </div>
             </div>
             
-            <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--green); background:white; color:var(--green); font-weight:bold; border-radius:12px; cursor:pointer;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list" style="margin-top: 15px;"></div>
+            <button onclick="addTemp()" style="width:100%; padding:18px; margin-top:20px; border:2px dashed var(--green); background:white; color:var(--green); font-weight:bold; border-radius:15px; font-size:16px; cursor:pointer;">+ ADICIONAR OUTRO PESO</button>
+            <div id="m-temp-list" style="margin-top: 20px;"></div>
             
-            <div style="text-align:right; font-weight:bold; font-size:22px; margin: 20px 0;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
+            <div style="text-align:right; font-weight:bold; font-size:24px; margin: 25px 0; color:#333;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
             <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
         </div>
     </div>
 
     <div id="c-modal" class="modal">
         <div class="modal-inner">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--green); font-size: 16px; margin-bottom:20px; cursor:pointer;">⬅ VOLTAR</button>
-            <h2 style="margin-bottom:20px;">Meu Pedido</h2>
+            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:#eee; padding:10px 20px; border-radius:10px; font-weight:bold; color:#333; font-size: 18px; margin-bottom:25px; cursor:pointer;">⬅ VOLTAR</button>
+            <h2 style="margin-bottom:25px; font-size: 26px;">Meu Pedido</h2>
             <div id="cart-list"></div>
-            <div style="display:flex; justify-content:space-between; margin:25px 0; font-size:22px; font-weight:bold; border-top: 2px solid #eee; padding-top: 15px;">
+            <div style="display:flex; justify-content:space-between; margin:30px 0; font-size:24px; font-weight:bold; border-top: 2px solid #eee; padding-top: 20px;">
                 <span>TOTAL:</span><span style="color:var(--green)">R$ <span id="total">0.00</span></span>
             </div>
-            <input type="text" id="u-nome" class="search-input" style="margin-bottom:12px; border: 1px solid #ddd;" placeholder="Seu Nome">
-            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:20px; border: 1px solid #ddd;" placeholder="Bairro / Cidade">
-            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px; display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25">
+            <input type="text" id="u-nome" class="search-input" style="margin-bottom:15px; border: 2px solid #ccc;" placeholder="Escreva seu Nome">
+            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:25px; border: 2px solid #ccc;" placeholder="Escreva seu Bairro / Cidade">
+            <button onclick="sendZap()" style="width:100%; padding:22px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:20px; display:flex; align-items:center; justify-content:center; gap:12px; cursor:pointer;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30">
                 ENVIAR NO WHATSAPP
             </button>
         </div>
