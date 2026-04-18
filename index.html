@@ -114,7 +114,7 @@
 
         window.updateModalUI = () => {
             document.getElementById('m-qty').innerText = qty;
-            document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
+            document.getElementById('m-price').innerText = `A partir de R$ ${(selectedVar.price * qty).toFixed(2)}`;
             document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
                 <div class="c-item-row">
                     <span><b>${i.weight}</b></span>
@@ -225,8 +225,9 @@
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
         .card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; position: relative; }
-        .card-img { height: 160px; width: 100%; }
-        .card img { width: 100%; height: 100%; object-fit: cover; }
+        .card-img { height: 160px; width: 100%; background: #f9f9f9; }
+        .card img { width: 100%; height: 100%; object-fit: contain; }
+        
         .card-body { padding: 8px; }
         .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
         .price { color: var(--orange); font-weight: bold; font-size: 16px; }
@@ -236,8 +237,7 @@
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
         .modal-inner { padding: 20px; }
-        
-        #m-img { width:100%; border-radius:15px; height:280px; object-fit:cover; }
+        #m-img { width:100%; border-radius:15px; height:280px; object-fit:contain; background: #f9f9f9; }
 
         .var-btn { flex: 1; border: 2px solid #ddd; border-radius: 10px; padding: 10px; background: white; display: flex; flex-direction: column; align-items: center; margin: 4px; min-width: 80px; }
         .var-btn.active { border-color: var(--orange); background: #fff5ee; color: var(--orange); }
@@ -286,7 +286,7 @@
             
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:10px; border-radius:15px;">
                 <div class="qty-control"><button class="qty-btn" onclick="changeQty(-1)">-</button><span id="m-qty">1</span><button class="qty-btn" onclick="changeQty(1)">+</button></div>
-                <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
+                <span id="m-price" style="font-size:18px; font-weight:bold; color:var(--orange)"></span>
             </div>
 
             <button id="btn-outro-peso" onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px;">+ OUTRO PESO</button>
