@@ -5,81 +5,77 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
 <link rel="manifest" href="manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#ff7800">
 <title>Center Pet</title>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
     authDomain: "birdselect-d96b8.firebaseapp.com",
     projectId: "birdselect-d96b8",
-    storageBucket: "birdselect-d96b8.firebasestorage.app",
-    messagingSenderId: "758168536506",
-    appId: "1:758168536506:web:26cebc129c97b6da5b8983"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let mainCart = JSON.parse(localStorage.getItem('centerpet_cart')) || [];
-let tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
+let selectedProduct = null;
+let selectedVar = null;
 
 onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
     window.prods = snap.docs.map(d => {
         const p = { id: d.id, ...d.data() };
 
-        // ✅ PROMO CORRIGIDA
-        p.onPromo = p.isPromo === true || p.isPromo === 'true' || (p.promoPrice && Number(p.promoPrice) > 0);
+        const promo = Number(p.promoPrice || 0);
+        const price = Number(p.price || 0);
 
-        p.finalPrice = p.onPromo ? Number(p.promoPrice) : Number(p.price);
+        p.onPromo = (p.isPromo === true || p.isPromo === 'true') || promo > 0;
+        p.finalPrice = promo > 0 ? promo : price;
+
         return p;
     });
+
+    render();
 });
 
-window.openProduct = (id) => {
-    selectedProduct = window.prods.find(p => p.id === id);
+function render(){
+    document.getElementById("grid").innerHTML = window.prods.map(p => `
+        <div onclick="openProduct('${p.id}')" style="border:1px solid #eee; padding:10px; border-radius:10px;">
+            ${p.onPromo ? "<b style='color:red'>PROMOÇÃO</b>" : ""}
+            <h4>${p.name}</h4>
+            <p>R$ ${p.finalPrice.toFixed(2)}</p>
+        </div>
+    `).join("");
+}
 
-    // ✅ MODAL CORRIGIDO
+window.openProduct = (id)=>{
+    selectedProduct = window.prods.find(p=>p.id===id);
+
     selectedVar = {
         ...selectedProduct.variations[0],
         price: selectedProduct.onPromo
             ? selectedProduct.finalPrice
-            : Number(selectedProduct.variations[0].price)
+            : Number(selectedProduct.variations[0].price || 0)
     };
 
-    qty = 1;
-    document.getElementById('p-modal').style.display = "block";
+    alert(selectedProduct.name + " - R$ " + selectedVar.price.toFixed(2));
 };
 
-// ✅ SERVICE WORKER EMBUTIDO (SEM ARQUIVO)
+// service worker real
 if ("serviceWorker" in navigator) {
-    const swCode = `
-        self.addEventListener('fetch', function(event) {
-            event.respondWith(fetch(event.request));
-        });
-    `;
-    const blob = new Blob([swCode], { type: 'text/javascript' });
-    const swURL = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swURL);
+    navigator.serviceWorker.register("service-worker.js");
 }
 </script>
 
 <style>
-body { font-family: sans-serif; margin:0; }
+body{font-family:sans-serif;margin:0;padding:10px}
 </style>
 </head>
 
 <body>
-
 <h2>Center Pet</h2>
-
-<div id="p-modal" style="display:none;"></div>
-
+<div id="grid"></div>
 </body>
 </html>
