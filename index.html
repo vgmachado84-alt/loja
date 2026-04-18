@@ -107,18 +107,22 @@
         window.selectVar = (idx) => { selectedVar = selectedProduct.variations[idx]; renderVars(); updateModalUI(); };
         window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
         function renderVars() { document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `<button class="chip ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>`).join(''); }
+        
         window.addTemp = () => { 
             const existing = tempCart.find(i => i.weight === selectedVar.weight);
             if(existing) existing.qty += qty;
             else tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
             qty = 1; updateModalUI(); 
         };
+
         window.confirmToMain = () => { 
             if(tempCart.length > 0) mainCart = [...mainCart, ...tempCart]; 
             else mainCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code }); 
             updateBadge(); document.getElementById('p-modal').classList.remove('active'); 
         };
+
         function updateBadge() { const b = document.getElementById('badge'); b.innerText = mainCart.length; b.style.display = mainCart.length > 0 ? 'flex' : 'none'; }
+        
         window.showMainCart = () => {
             let total = 0;
             document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => { 
@@ -128,12 +132,17 @@
             document.getElementById('total').innerText = total.toFixed(2);
             document.getElementById('c-modal').classList.add('active');
         };
+
         window.updateMainQty = (idx, v) => { mainCart[idx].qty += v; if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); updateBadge(); showMainCart(); };
+        
+        // FUNÇÃO WHATSAPP COM CÓDIGO DO PRODUTO
         window.sendZap = () => {
             const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
             let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
+            mainCart.forEach(i => { 
+                t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; 
+            });
             t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
             window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
         };
@@ -142,12 +151,12 @@
     <style>
         :root { --green: #2d5a27; }
         
-        /* AJUSTE AQUI: Aumentamos o padding para empurrar os produtos para baixo */
+        /* AJUSTE DE ESPAÇAMENTO DA VITRINE */
         body { 
             font-family: sans-serif; 
             margin: 0; 
             background: #f8faf9; 
-            padding-top: 185px; /* Empurra os produtos para baixo do cabeçalho */
+            padding-top: 190px; /* Garante que os produtos não fiquem cortados abaixo da categoria */
             -webkit-tap-highlight-color: transparent; 
         }
 
@@ -158,29 +167,32 @@
         .search-input { width: 100%; padding: 12px 15px; border-radius: 25px; border: 1px solid #eee; background: #f5f5f5; box-sizing: border-box; font-size: 16px; outline: none; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
         .cat-bar::-webkit-scrollbar { display: none; }
+        
         .cat-chip { background: #f0f0f0; border: none; padding: 8px 18px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
         .cat-chip.active { background: var(--green); color: white; }
         
-        /* Margem superior extra na grid para garantir que não corte */
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px 12px; }
-        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
         .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         .card-img { width: 100%; height: 120px; background: #eee; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
         .card-body { padding: 10px; display: flex; flex-direction: column; min-height: 80px; }
         .card h4 { margin: 0 0 8px 0; font-size: 14px; color: #333; line-height: 1.2; height: 34px; overflow: hidden; }
+        
         .price-container { display: flex; flex-direction: column; margin-top: auto; }
         .a-partir { font-size: 11px; color: #888; margin-bottom: 2px; }
         .price { font-weight: bold; color: var(--green); font-size: 18px; }
+        
         .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--green); color: white; border: none; width: 35px; height: 35px; border-radius: 12px; font-size: 22px; cursor: pointer; }
 
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
-        .modal-inner { padding: calc(30px + env(safe-area-inset-top)) 20px 40px; }
+        
+        /* Espaçamento seguro para câmeras/notch no modal */
+        .modal-inner { padding: calc(20px + env(safe-area-inset-top)) 20px 40px; }
+
         .btn-buy { background: var(--green); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; display: flex; align-items: center; justify-content: center; }
         .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 10px; display: block; }
         .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
-        .btn-fechar { border:none; background:#f0f0f0; border-radius:50%; width:44px; height:44px; font-size: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -201,7 +213,7 @@
 
     <div id="p-modal" class="modal">
         <div class="modal-inner">
-            <button class="btn-fechar" onclick="document.getElementById('p-modal').classList.remove('active')">✕</button>
+            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#f0f0f0; border-radius:50%; width:40px; height:40px; font-size: 20px; margin-bottom:15px;">✕</button>
             <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
             <div id="m-code" style="margin-top:15px; color:#999; font-size:12px; letter-spacing: 1px;"></div>
             <h2 id="m-title" style="margin:10px 0; color: #222;"></h2>
@@ -214,7 +226,9 @@
                     <span id="m-qty" style="font-weight:bold; font-size:18px;">1</span>
                     <button onclick="changeQty(1)" style="border:none; background:none; font-size:24px; color:var(--green); font-weight:bold;">+</button>
                 </div>
-                <div style="text-align:right"><span id="m-price" style="font-size:26px; font-weight:bold; color:var(--green)"></span></div>
+                <div style="text-align:right">
+                    <span id="m-price" style="font-size:26px; font-weight:bold; color:var(--green)"></span>
+                </div>
             </div>
             <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--green); background:white; color:var(--green); font-weight:bold; border-radius:12px;">+ ADICIONAR OUTRO PESO</button>
             <div id="m-temp-list" style="margin-top: 15px;"></div>
@@ -225,8 +239,8 @@
 
     <div id="c-modal" class="modal">
         <div class="modal-inner">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--green); font-size: 16px;">⬅ VOLTAR</button>
-            <h2 style="margin-top: 15px;">Meu Pedido</h2>
+            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--green); font-size: 16px; margin-bottom:20px;">⬅ VOLTAR</button>
+            <h2 style="margin-bottom:20px;">Meu Pedido</h2>
             <div id="cart-list"></div>
             <div style="display:flex; justify-content:space-between; margin:25px 0; font-size:22px; font-weight:bold; border-top: 2px solid #eee; padding-top: 15px;">
                 <span>TOTAL:</span><span style="color:var(--green)">R$ <span id="total">0.00</span></span>
