@@ -29,7 +29,7 @@
         
         let mainCart = [], tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
 
-        // Carregar Logo e Configurações
+        // Carregamento da Logo e Configurações
         onSnapshot(doc(db, "config", "layout"), d => { 
             if(d.exists() && d.data().logo) document.getElementById('logo').src = d.data().logo;
         });
@@ -49,17 +49,18 @@
         window.filterCat = (c) => { currentCat = c; renderGrid(); };
         window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
 
+        // LÓGICA DE PROMOÇÃO NA VITRINE
         function renderGrid() {
             let filtered = window.prods;
             if(currentCat === "Promoções") {
-                filtered = window.prods.filter(p => p.isPromo || (p.promoPrice && Number(p.promoPrice) > 0));
+                filtered = window.prods.filter(p => p.isPromo === true || (p.promoPrice && Number(p.promoPrice) > 0));
             } else if(currentCat !== "Todos") {
                 filtered = window.prods.filter(p => p.cat === currentCat);
             }
             if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm) || (p.code && p.code.toLowerCase().includes(searchTerm)));
             
             document.getElementById('grid').innerHTML = filtered.map(p => {
-                const onPromo = p.isPromo || (p.promoPrice && Number(p.promoPrice) > 0);
+                const onPromo = p.isPromo === true || (p.promoPrice && Number(p.promoPrice) > 0);
                 const precoExibido = onPromo ? Number(p.promoPrice) : p.price;
                 return `
                 <div class="card" onclick="openProduct('${p.id}')">
@@ -76,11 +77,14 @@
                 </div>`}).join('');
         }
 
+        // LÓGICA DE PROMOÇÃO NO MODAL
         window.openProduct = (id) => {
             selectedProduct = window.prods.find(p => p.id === id);
-            const onPromo = selectedProduct.isPromo || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
-            const basePrice = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[0].price;
-            selectedVar = {...selectedProduct.variations[0], price: basePrice};
+            const onPromo = selectedProduct.isPromo === true || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
+            
+            // Força o preço da promoção se existir
+            const valorInicial = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[0].price;
+            selectedVar = {...selectedProduct.variations[0], price: valorInicial};
             
             tempCart = []; qty = 1;
             document.getElementById('m-img').src = selectedProduct.img || '';
@@ -93,13 +97,20 @@
             document.getElementById('p-modal').classList.add('active');
         };
 
+        window.selectVar = (idx) => { 
+            const onPromo = selectedProduct.isPromo === true || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
+            const price = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[idx].price;
+            selectedVar = {...selectedProduct.variations[idx], price: price}; 
+            renderVars(); updateModalUI(); 
+        };
+
         window.updateModalUI = () => {
             document.getElementById('m-qty').innerText = qty;
             document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
             document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
                 <div class="c-item" style="display:flex; align-items:center; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
                     <div style="flex:1"><b>${i.weight}</b> - R$ ${(i.price * i.qty).toFixed(2)}</div>
-                    <div class="qty-control" style="transform: scale(0.85);">
+                    <div class="qty-control" style="transform: scale(0.8);">
                         <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
                         <span>${i.qty}</span>
                         <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
@@ -112,13 +123,6 @@
             tempCart[idx].qty += v;
             if(tempCart[idx].qty < 1) tempCart.splice(idx, 1);
             updateModalUI();
-        };
-
-        window.selectVar = (idx) => { 
-            const onPromo = selectedProduct.isPromo || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
-            const price = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[idx].price;
-            selectedVar = {...selectedProduct.variations[idx], price: price}; 
-            renderVars(); updateModalUI(); 
         };
 
         window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
@@ -162,10 +166,11 @@
 
     <style>
         :root { --orange: #ff7800; }
-        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 175px; -webkit-tap-highlight-color: transparent; }
-        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 175px; -webkit-tap-highlight-color: transparent; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding-top: env(safe-area-inset-top); }
         .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
         #logo { height: 45px; width: auto; object-fit: contain; }
+        
         .search-container { padding: 0 15px 10px; }
         .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; font-size: 16px; outline: none; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
@@ -173,14 +178,14 @@
         .cat-chip.active { background: var(--orange); color: white; }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
-        .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; min-height: 230px; }
+        .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; min-height: 220px; }
         .card-img { width: 100%; height: 110px; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
         .card-body { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; }
-        .card h4 { margin: 0 0 5px 0; font-size: 14px; color: #333; line-height: 1.2; height: 34px; overflow: hidden; }
+        .card h4 { margin: 0 0 5px 0; font-size: 13px; color: #333; line-height: 1.2; height: 32px; overflow: hidden; }
         
-        .price-container { display: flex; flex-direction: column; margin-top: auto; padding-bottom: 5px; }
-        .a-partir { font-size: 10px; color: #888; display: block; }
+        .price-container { display: flex; flex-direction: column; margin-top: auto; }
+        .a-partir { font-size: 10px; color: #888; display: block; margin-bottom: 2px; }
         .price { font-weight: bold; color: var(--orange); font-size: 17px; display: block; }
         
         .promo-badge { position: absolute; top: 8px; left: 8px; background: #e74c3c; color: white; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; z-index: 1; }
@@ -190,15 +195,15 @@
         .modal.active { transform: translateY(0); }
         .modal-inner { padding: 30px 20px; }
         
-        .qty-control { display: flex; align-items: center; gap: 15px; background: #f1f1f1; border-radius: 12px; padding: 8px 15px; }
-        .qty-btn { border: none; background: white; font-size: 24px; color: var(--orange); font-weight: bold; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .qty-control { display: flex; align-items: center; gap: 15px; background: #f1f1f1; border-radius: 12px; padding: 8px 15px; border: 1px solid #eee; }
+        .qty-btn { border: none; background: white; font-size: 24px; color: var(--orange); font-weight: bold; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .qty-control span { font-weight: bold; font-size: 20px; }
         
-        .var-btn { border: 2px solid #ddd; padding: 12px; border-radius: 10px; background: white; margin: 4px; font-weight: bold; font-size: 14px; flex: 1; min-width: 80px; }
+        .var-btn { border: 2px solid #ddd; padding: 12px; border-radius: 10px; background: white; margin: 4px; font-weight: bold; font-size: 14px; flex: 1; min-width: 80px; text-align: center; }
         .var-btn.active { border-color: var(--orange); color: var(--orange); background: #fff5ee; }
 
         .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; }
-        .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 15px; display: block; }
+        .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 10px; display: block; }
         .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
     </style>
 </head>
@@ -224,10 +229,13 @@
             <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
             <div id="m-code" style="margin-top:15px; color:#777; font-size:12px;"></div>
             <h2 id="m-title" style="margin:10px 0;"></h2>
-            <p id="m-desc" style="color:#666; font-size: 15px;"></p>
+            <p id="m-desc" style="color:#666; font-size: 15px; margin-bottom: 10px;"></p>
             <span id="m-stock" class="stock-tag"></span>
-            <div id="m-vars" style="margin: 15px 0; display:flex; flex-wrap:wrap;"></div>
-            <div style="background:#f9f9f9; padding:15px; border-radius:18px; display:flex; align-items:center; justify-content:space-between;">
+            
+            <p style="font-weight:bold; font-size:14px; margin-bottom:10px;">Opções de Peso:</p>
+            <div id="m-vars" style="margin-bottom: 15px; display:flex; flex-wrap:wrap;"></div>
+            
+            <div style="background:#f9f9f9; padding:15px; border-radius:18px; display:flex; align-items:center; justify-content:space-between; border:1px solid #eee;">
                 <div class="qty-control">
                     <button class="qty-btn" onclick="changeQty(-1)">-</button>
                     <span id="m-qty">1</span>
@@ -235,8 +243,10 @@
                 </div>
                 <span id="m-price" style="font-size:26px; font-weight:bold; color:var(--orange)"></span>
             </div>
+            
             <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:12px;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list"></div>
+            <div id="m-temp-list" style="margin-top:10px;"></div>
+            
             <div style="text-align:right; font-weight:bold; font-size:22px; margin: 20px 0;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
             <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
         </div>
@@ -252,7 +262,7 @@
             </div>
             <input type="text" id="u-nome" class="search-input" style="margin-bottom:10px;" placeholder="Seu Nome">
             <input type="text" id="u-cidade" class="search-input" style="margin-bottom:10px;" placeholder="Bairro / Cidade">
-            <textarea id="u-obs" class="search-input" style="height:80px; margin-bottom:15px; resize:none;" placeholder="Alguma observação?"></textarea>
+            <textarea id="u-obs" class="search-input" style="height:80px; margin-bottom:15px; resize:none;" placeholder="Alguma observação do pedido?"></textarea>
             <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px; display:flex; align-items:center; justify-content:center; gap:10px;">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25"> ENVIAR NO WHATSAPP
             </button>
