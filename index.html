@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <link rel="manifest" href="manifest.json">
+    
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -65,7 +66,6 @@
             if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm));
             
             document.getElementById('grid').innerHTML = filtered.map(p => {
-                // Lógica para mostrar "A partir de" apenas se houver mais de uma variação
                 const temVariacoes = p.variations && p.variations.length > 1;
                 return `
                 <div class="card" onclick="openProduct('${p.id}')">
@@ -216,6 +216,11 @@
         };
 
         window.onload = updateBadge;
+
+        // REGISTRO DO SERVICE WORKER ADICIONADO AQUI
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/loja/service-worker.js");
+        }
     </script>
 
     <style>
