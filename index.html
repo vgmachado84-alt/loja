@@ -64,19 +64,23 @@
             else if(currentCat !== "Todos") filtered = filtered.filter(p => p.cat === currentCat);
             if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm));
             
-            document.getElementById('grid').innerHTML = filtered.map(p => `
+            document.getElementById('grid').innerHTML = filtered.map(p => {
+                // Lógica para mostrar "A partir de" apenas se houver mais de uma variação
+                const temVariacoes = p.variations && p.variations.length > 1;
+                return `
                 <div class="card" onclick="openProduct('${p.id}')">
                     ${p.onPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
                     <div class="card-img"><img src="${p.img || ''}"></div>
                     <div class="card-body">
                         <h4>${p.name}</h4>
                         <div class="price-container">
-                            <span class="price-label">A partir de</span>
+                            ${temVariacoes ? '<span class="price-label">A partir de</span>' : ''}
                             <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
-                </div>`).join('');
+                </div>`;
+            }).join('');
         }
 
         window.openProduct = (id) => {
@@ -234,8 +238,7 @@
         .card-body { padding: 8px; }
         .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
         
-        /* ESTILO DA FRASE NA VITRINE */
-        .price-container { display: flex; flex-direction: column; }
+        .price-container { display: flex; flex-direction: column; height: 30px; justify-content: flex-end; }
         .price-label { font-size: 10px; color: #888; margin-bottom: -2px; }
         .price { color: var(--orange); font-weight: bold; font-size: 16px; }
         
