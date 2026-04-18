@@ -5,113 +5,118 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Center Pet - Catálogo</title>
     <link rel="manifest" href="./manifest.json">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // CONFIGURAÇÃO DO SEU FIREBASE (Center Pet)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
+            authDomain: "birdselect-d96b8.firebaseapp.com",
+            projectId: "birdselect-d96b8",
+            storageBucket: "birdselect-d96b8.firebasestorage.app",
+            messagingSenderId: "758168536506",
+            appId: "1:758168536506:web:26cebc129c97b6da5b8983"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Carregar produtos e exibir na tela
+        const listaProdutos = document.getElementById('lista-produtos');
+        onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), (snap) => {
+            listaProdutos.innerHTML = snap.docs.map(doc => {
+                const p = doc.data();
+                return `
+                    <div class="card-produto" onclick='abrirModal(${JSON.stringify({
+                        nome: p.name,
+                        preco: p.price,
+                        imagem: p.img,
+                        estoque: p.stock,
+                        desc: p.desc
+                    })})'>
+                        <img src="${p.img}" class="img-prod">
+                        <div class="info-prod">
+                            <span class="txt-apartir">A partir de</span>
+                            <span class="valor-prod">R$ ${p.price}</span>
+                            <p class="nome-prod">${p.name}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        });
+    </script>
     <style>
-        /* AJUSTES VISUAIS QUE VOCÊ PEDIU */
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f4f4; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f4f4; }
+        header { background: #2d5a27; color: white; padding: 20px; text-align: center; font-weight: bold; }
         
-        /* Ajuste do Modal para não cortar a imagem */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
-        }
+        #lista-produtos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        
+        .card-produto { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .img-prod { width: 100%; height: 150px; object-fit: cover; }
+        .info-prod { padding: 10px; display: flex; flex-direction: column; }
+        
+        .txt-apartir { font-size: 11px; color: #777; }
+        .valor-prod { font-size: 18px; font-weight: bold; color: #2d5a27; }
+        .nome-prod { font-size: 14px; margin: 5px 0; color: #333; }
 
-        .modal-content {
-            background-color: white;
-            margin: 10% auto; /* Empurra o modal para baixo */
-            width: 90%;
-            max-width: 500px;
-            border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .modal-img {
-            width: 100%;
-            height: 250px;
-            object-fit: contain; /* Faz a imagem aparecer inteira */
-            background: #fff;
-        }
-
-        /* Ajuste do "A partir de" para pular linha */
-        .preco-container {
-            padding: 15px;
-            display: flex;
-            flex-direction: column; /* Um embaixo do outro */
-        }
-
-        .texto-apartir {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .valor-principal {
-            font-size: 24px;
-            font-weight: bold;
-            color: #27ae60;
-        }
-
-        .estoque-info {
-            font-size: 14px;
-            color: #e67e22;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .btn-whats {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #25d366;
-            color: white;
-            text-decoration: none;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px;
-            font-weight: bold;
-        }
+        /* MODAL CORRIGIDO */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+        .modal-content { background: white; margin: 15% auto; width: 85%; max-width: 400px; border-radius: 20px; overflow: hidden; position: relative; }
+        .modal-img { width: 100%; max-height: 250px; object-fit: contain; background: #fff; }
+        
+        .detalhes-modal { padding: 20px; display: flex; flex-direction: column; }
+        .modal-apartir { font-size: 14px; color: #666; margin-bottom: 2px; }
+        .modal-preco { font-size: 26px; font-weight: bold; color: #2d5a27; }
+        .modal-estoque { font-size: 14px; color: #e67e22; font-weight: bold; margin-top: 10px; }
+        
+        .btn-whats { display: flex; align-items: center; justify-content: center; background: #25d366; color: white; text-decoration: none; padding: 15px; border-radius: 12px; margin-top: 20px; font-weight: bold; }
+        .fechar { position: absolute; top: 10px; right: 15px; font-size: 25px; font-weight: bold; color: #333; cursor: pointer; z-index: 10; background: white; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 30px; }
     </style>
 </head>
 <body>
 
+    <header>CENTER PET - Ji-Paraná</header>
+
+    <div id="lista-produtos">
+        </div>
+
     <div id="meuModal" class="modal">
         <div class="modal-content">
-            <img id="imgModal" class="modal-img" src="">
-            <div class="preco-container">
-                <span class="texto-apartir">A partir de</span>
-                <span id="precoModal" class="valor-principal">R$ 0,00</span>
-                <div id="estoqueModal" class="estoque-info"></div>
+            <span class="fechar" onclick="document.getElementById('meuModal').style.display='none'">&times;</span>
+            <img id="imgModal" class="modal-img">
+            <div class="detalhes-modal">
+                <span id="nomeModal" style="font-weight: bold; font-size: 18px; margin-bottom: 10px;"></span>
+                <span class="modal-apartir">A partir de</span>
+                <span id="precoModal" class="modal-preco"></span>
+                <div id="estoqueModal" class="modal-estoque"></div>
+                
+                <a href="https://wa.me/5569992442426" id="linkWhats" class="btn-whats" target="_blank">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="22" style="margin-right: 10px;">
+                    Pedir no WhatsApp
+                </a>
             </div>
-            
-            <a href="#" id="linkWhats" class="btn-whats">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25" style="margin-right: 10px;">
-                Pedir no WhatsApp
-            </a>
         </div>
     </div>
 
     <script>
-        // Esta é a função que você precisa para o estoque aparecer
-        function abrirModal(produto) {
-            document.getElementById('imgModal').src = produto.imagem;
-            document.getElementById('precoModal').innerText = 'R$ ' + produto.preco;
+        function abrirModal(p) {
+            document.getElementById('nomeModal').innerText = p.nome;
+            document.getElementById('imgModal').src = p.imagem;
+            document.getElementById('precoModal').innerText = 'R$ ' + p.preco;
             
-            // Aqui faz o estoque aparecer
-            const estoque = produto.estoque || 0;
-            document.getElementById('estoqueModal').innerText = 'Estoque disponível: ' + estoque + ' unidades';
+            // Lógica do Estoque
+            const estoque = p.estoque || 0;
+            document.getElementById('estoqueModal').innerText = 'Estoque: ' + estoque + ' unidades disponíveis';
             
             document.getElementById('meuModal').style.display = "block";
         }
-        
-        // Registrar o App (PWA)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js');
+
+        // Fecha o modal clicando fora dele
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('meuModal')) {
+                document.getElementById('meuModal').style.display = "none";
+            }
         }
     </script>
 </body>
