@@ -55,7 +55,7 @@
                 cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
         }
 
-        window.filterCat = (c) => { currentCat = c; renderGrid(); renderCatBar([]); };
+        window.filterCat = (c) => { currentCat = c; renderGrid(); onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => renderCatBar(snap.docs.map(d => d.data().nome))); };
         window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
 
         function renderGrid() {
@@ -84,6 +84,7 @@
             document.getElementById('m-title').innerText = selectedProduct.name;
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
             document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
+            document.getElementById('m-stock').innerText = "Estoque: " + (selectedProduct.stock || 0);
             renderVars(); updateModalUI();
             document.getElementById('p-modal').classList.add('active');
         };
@@ -175,11 +176,19 @@
             saveCart();
             showMainCart();
         };
+
+        window.shareApp = () => {
+            if (navigator.share) {
+                navigator.share({ title: 'Center Pet', text: 'Confira os produtos da Center Pet!', url: window.location.href });
+            }
+        };
         
         window.sendZap = () => {
-            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
+            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value, obs = document.getElementById('u-obs').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
-            let t = `*CENTER PET - PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
+            let t = `*CENTER PET - PEDIDO*\nCliente: ${n}\nCidade: ${c}\n`;
+            if(obs) t += `Obs: ${obs}\n`;
+            t += `\n`;
             mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || '--'}\n${i.qty}x R$ ${i.price.toFixed(2)} = R$ ${(i.qty * i.price).toFixed(2)}\n\n`; });
             t += `*TOTAL: R$ ${document.getElementById('total').innerText}*`;
             mainCart = [];
@@ -195,7 +204,7 @@
         :root { --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 170px; }
         header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; gap: 10px; }
         #logo { height: 40px; }
         .search-container { padding: 0 15px 10px; }
         .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; outline: none; box-sizing: border-box; }
@@ -226,13 +235,17 @@
         .c-item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
         .cart-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; gap: 10px; }
         .float-zap { position: fixed; bottom: 20px; right: 20px; background: #25d366; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 3000; }
+        .share-btn { border: none; background: #f0f0f0; padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     </style>
 </head>
 <body>
     <header>
         <div class="top-bar">
             <img id="logo" src="">
-            <button onclick="showMainCart()" style="border:none; background:none; font-size:25px; position:relative;">🛒<span id="badge" class="badge">0</span></button>
+            <div style="display:flex; gap:10px;">
+                <button class="share-btn" onclick="shareApp()">🔗</button>
+                <button onclick="showMainCart()" style="border:none; background:none; font-size:25px; position:relative;">🛒<span id="badge" class="badge">0</span></button>
+            </div>
         </div>
         <div class="search-container"><input type="text" class="search-input" placeholder="Buscar..." oninput="handleSearch(event)"></div>
         <div class="cat-bar" id="cat-bar"></div>
@@ -244,7 +257,10 @@
         <div class="modal-inner">
             <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px; margin-bottom:10px;">✕</button>
             <img id="m-img" style="width:100%; border-radius:15px; height:200px; object-fit:cover;">
-            <div id="m-code" style="margin-top:10px; font-size:12px; color:#888;"></div>
+            <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                <span id="m-code" style="font-size:12px; color:#888;"></span>
+                <span id="m-stock" style="font-size:12px; font-weight:bold; color:var(--orange);"></span>
+            </div>
             <h2 id="m-title" style="margin:5px 0;"></h2>
             <p id="m-desc" style="color:#666; font-size:14px; margin-bottom:10px;"></p>
             <div id="m-vars" style="display:flex; flex-wrap:wrap; margin-bottom:15px;"></div>
@@ -268,7 +284,8 @@
                 <span>TOTAL:</span><span style="color:var(--orange)">R$ <span id="total">0.00</span></span>
             </div>
             <input type="text" id="u-nome" class="search-input" style="margin-top:20px; margin-bottom:10px;" placeholder="Seu Nome">
-            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:15px;" placeholder="Bairro / Cidade">
+            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:10px;" placeholder="Bairro / Cidade">
+            <textarea id="u-obs" class="search-input" style="height: 60px; margin-bottom:15px; border-radius:10px; padding:10px;" placeholder="Observações (Opcional)"></textarea>
             <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:16px;">ENVIAR WHATSAPP</button>
         </div>
     </div>
