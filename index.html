@@ -8,14 +8,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#2d5a27">
+    <meta name="theme-color" content="#ff7800">
     <title>Center Pet</title>
 
     <script type="module">
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
-        }
-
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -33,54 +29,75 @@
         
         let mainCart = [], tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
 
-        onSnapshot(doc(db, "config", "layout"), d => { 
-            if(d.exists() && d.data().logo) document.getElementById('logo').src = d.data().logo;
+        onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
+            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            renderGrid();
         });
 
         onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
             const cats = snap.docs.map(d => d.data().nome);
             document.getElementById('cat-bar').innerHTML = `<button class="cat-chip ${currentCat === 'Todos' ? 'active' : ''}" onclick="filterCat('Todos')">Todos</button>` + 
+                `<button class="cat-chip ${currentCat === 'Promoções' ? 'active' : ''}" onclick="filterCat('Promoções')">🔥 Promoções</button>` +
                 cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
-        });
-
-        onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
-            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            renderGrid();
         });
 
         window.filterCat = (c) => { currentCat = c; renderGrid(); };
         window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
 
         function renderGrid() {
-            let filtered = currentCat === "Todos" ? window.prods : window.prods.filter(p => p.cat === currentCat);
+            let filtered = window.prods;
+            
+            if(currentCat === "Promoções") {
+                filtered = window.prods.filter(p => p.isPromo || (p.promoPrice && Number(p.promoPrice) > 0));
+            } else if(currentCat !== "Todos") {
+                filtered = window.prods.filter(p => p.cat === currentCat);
+            }
+
             if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm) || (p.code && p.code.toLowerCase().includes(searchTerm)));
             
-            document.getElementById('grid').innerHTML = filtered.map(p => `
+            document.getElementById('grid').innerHTML = filtered.map(p => {
+                const onPromo = p.isPromo || (p.promoPrice && Number(p.promoPrice) > 0);
+                return `
                 <div class="card" onclick="openProduct('${p.id}')">
+                    ${onPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
                     <div class="card-img"><img src="${p.img || ''}"></div>
                     <div class="card-body">
                         <h4>${p.name}</h4>
                         <div class="price-container">
                             <span class="a-partir">A partir de</span>
-                            <span class="price">R$ ${p.price.toFixed(2)}</span>
+                            <span class="price">R$ ${Number(onPromo ? p.promoPrice : p.price).toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
-                </div>`).join('');
+                </div>`}).join('');
         }
 
         window.openProduct = (id) => {
             selectedProduct = window.prods.find(p => p.id === id);
-            selectedVar = selectedProduct.variations[0];
+            const onPromo = selectedProduct.isPromo || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
+            selectedVar = {...selectedProduct.variations[0], price: onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[0].price};
             tempCart = []; qty = 1;
             document.getElementById('m-img').src = selectedProduct.img || '';
             document.getElementById('m-title').innerText = selectedProduct.name;
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
             document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
-            const estoque = selectedProduct.stock || 0;
-            document.getElementById('m-stock').innerText = `Estoque disponível: ${estoque} un.`;
             renderVars(); updateModalUI();
             document.getElementById('p-modal').classList.add('active');
+        };
+
+        window.updateModalUI = () => {
+            document.getElementById('m-qty').innerText = qty;
+            document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
+            document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
+                <div class="c-item" style="display:flex; align-items:center; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
+                    <div style="flex:1"><b>${i.weight}</b> - R$ ${(i.price * i.qty).toFixed(2)}</div>
+                    <div class="qty-control" style="transform: scale(0.85);">
+                        <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
+                        <span>${i.qty}</span>
+                        <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
+                    </div>
+                </div>`).join('');
+            document.getElementById('m-subtotal').innerText = tempCart.reduce((a,b) => a + (b.price * b.qty), 0).toFixed(2);
         };
 
         window.updateTempQty = (idx, v) => {
@@ -89,29 +106,17 @@
             updateModalUI();
         };
 
-        function updateModalUI() {
-            document.getElementById('m-qty').innerText = qty;
-            document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
-            document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
-                <div class="c-item" style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
-                    <div style="flex:1"><b>${i.weight}</b> - R$ ${(i.price * i.qty).toFixed(2)}</div>
-                    <div class="qty-control" style="transform: scale(0.9);">
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
-                        <span>${i.qty}</span>
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
-                    </div>
-                </div>`).join('');
-            document.getElementById('m-subtotal').innerText = tempCart.reduce((a,b) => a + (b.price * b.qty), 0).toFixed(2);
-        }
+        window.selectVar = (idx) => { 
+            const onPromo = selectedProduct.isPromo || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
+            selectedVar = {...selectedProduct.variations[idx], price: onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[idx].price}; 
+            renderVars(); updateModalUI(); 
+        };
 
-        window.selectVar = (idx) => { selectedVar = selectedProduct.variations[idx]; renderVars(); updateModalUI(); };
         window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
         function renderVars() { document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>`).join(''); }
         
         window.addTemp = () => { 
-            const existing = tempCart.find(i => i.weight === selectedVar.weight);
-            if(existing) existing.qty += qty;
-            else tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
+            tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
             qty = 1; updateModalUI(); 
         };
 
@@ -127,7 +132,7 @@
             let total = 0;
             document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => { 
                 total += i.price * i.qty; 
-                return `<div class="c-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid #eee;"><div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div><div class="qty-control"><button class="qty-btn" onclick="updateMainQty(${idx}, -1)">-</button><span>${i.qty}</span><button class="qty-btn" onclick="updateMainQty(${idx}, 1)">+</button></div><div style="margin-left:10px">R$ ${(i.price * i.qty).toFixed(2)}</div></div>`; 
+                return `<div class="c-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid #eee;"><div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div><div class="qty-control" style="transform: scale(0.8);"><button class="qty-btn" onclick="updateMainQty(${idx}, -1)">-</button><span>${i.qty}</span><button class="qty-btn" onclick="updateMainQty(${idx}, 1)">+</button></div><div style="margin-left:10px">R$ ${(i.price * i.qty).toFixed(2)}</div></div>`; 
             }).join('');
             document.getElementById('total').innerText = total.toFixed(2);
             document.getElementById('c-modal').classList.add('active');
@@ -136,73 +141,56 @@
         window.updateMainQty = (idx, v) => { mainCart[idx].qty += v; if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); updateBadge(); showMainCart(); };
         
         window.sendZap = () => {
-            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
+            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value, obs = document.getElementById('u-obs').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
             let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { 
-                t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; 
-            });
+            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
+            if(obs) t += `*OBSERVAÇÃO:* ${obs}\n\n`;
             t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
             window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
         };
     </script>
 
     <style>
-        :root { --green: #2d5a27; }
-        
-        body { 
-            font-family: sans-serif; 
-            margin: 0; 
-            background: #f8faf9; 
-            padding-top: 200px; 
-            -webkit-tap-highlight-color: transparent; 
-        }
-
+        :root { --orange: #ff7800; }
+        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 175px; -webkit-tap-highlight-color: transparent; }
         header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
         #logo { max-height: 45px; max-width: 140px; object-fit: contain; }
         .search-container { padding: 0 15px 10px; }
-        .search-input { width: 100%; padding: 15px; border-radius: 25px; border: 1px solid #ddd; background: #f5f5f5; box-sizing: border-box; font-size: 18px; outline: none; }
+        .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; font-size: 16px; outline: none; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
-        .cat-bar::-webkit-scrollbar { display: none; }
-        .cat-chip { background: #f0f0f0; border: none; padding: 10px 20px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 14px; }
-        .cat-chip.active { background: var(--green); color: white; }
+        .cat-chip { background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
+        .cat-chip.active { background: var(--orange); color: white; }
         
+        .promo-badge { position: absolute; top: 10px; left: 10px; background: #e74c3c; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; z-index: 1; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
-        .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .card-img { width: 100%; height: 120px; background: #eee; }
+        .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; }
+        .card-img { width: 100%; height: 120px; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
-        .card-body { padding: 10px; display: flex; flex-direction: column; min-height: 80px; }
-        .card h4 { margin: 0 0 8px 0; font-size: 14px; color: #333; line-height: 1.2; height: 34px; overflow: hidden; }
-        .price-container { display: flex; flex-direction: column; margin-top: auto; }
-        .a-partir { font-size: 11px; color: #888; margin-bottom: 2px; }
-        .price { font-weight: bold; color: var(--green); font-size: 18px; }
-        
-        .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--green); color: white; border: none; width: 40px; height: 40px; border-radius: 12px; font-size: 24px; cursor: pointer; }
+        .price { font-weight: bold; color: var(--orange); font-size: 18px; }
+        .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--orange); color: white; border: none; width: 35px; height: 35px; border-radius: 10px; font-size: 22px; }
 
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
-        .modal-inner { padding: calc(30px + env(safe-area-inset-top)) 20px 40px; }
+        .modal-inner { padding: 30px 20px; }
         
-        /* CONTROLE DE QUANTIDADE - GRANDE E ESPAÇADO PARA IDOSOS */
-        .qty-control { display: flex; align-items: center; gap: 20px; background: #f1f1f1; border-radius: 15px; padding: 10px 20px; border: 1px solid #ddd; }
-        .qty-btn { border: none; background: white; font-size: 30px; color: var(--green); font-weight: bold; cursor: pointer; width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
-        .qty-control span { font-weight: bold; font-size: 24px; color: #222; min-width: 30px; text-align: center; }
+        .qty-control { display: flex; align-items: center; gap: 15px; background: #f1f1f1; border-radius: 12px; padding: 8px 15px; }
+        .qty-btn { border: none; background: white; font-size: 24px; color: var(--orange); font-weight: bold; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .qty-control span { font-weight: bold; font-size: 20px; }
         
-        /* BOTÕES DE PESO - MAIORES E MAIS CLAROS */
-        .var-btn { border: 2px solid #ddd; padding: 15px 20px; border-radius: 12px; background: white; margin: 6px 3px; font-weight: bold; font-size: 16px; color: #444; cursor: pointer; flex: 1; min-width: 100px; text-align: center; }
-        .var-btn.active { border-color: var(--green); color: var(--green); background: #eef7ee; box-shadow: 0 0 0 1px var(--green); }
+        .var-btn { border: 2px solid #ddd; padding: 12px; border-radius: 10px; background: white; margin: 4px; font-weight: bold; font-size: 14px; flex: 1; min-width: 80px; }
+        .var-btn.active { border-color: var(--orange); color: var(--orange); background: #fff5ee; }
 
-        .btn-buy { background: var(--green); color: white; border: none; padding: 22px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 20px; margin-top: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .stock-tag { font-size: 14px; color: #e67e22; font-weight: bold; margin-bottom: 15px; display: block; }
-        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 12px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
+        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; }
+        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
     </style>
 </head>
 <body>
     <header>
         <div class="top-bar">
             <img id="logo" src="https://via.placeholder.com/150x50?text=Center+Pet">
-            <button onclick="showMainCart()" style="border:none; background:none; font-size:32px; position:relative; padding: 5px; cursor:pointer;">
+            <button onclick="showMainCart()" style="border:none; background:none; font-size:28px; position:relative; padding: 5px;">
                 🛒<span id="badge" class="badge" style="display:none">0</span>
             </button>
         </div>
@@ -216,56 +204,46 @@
 
     <div id="p-modal" class="modal">
         <div class="modal-inner">
-            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:50px; height:50px; font-size: 24px; margin-bottom:20px; cursor:pointer; font-weight:bold;">✕</button>
-            
-            <img id="m-img" style="width:100%; border-radius:20px; height:280px; object-fit:cover;">
-            
-            <div id="m-code" style="margin-top:20px; color:#777; font-size:14px; font-weight:bold;"></div>
-            <h2 id="m-title" style="margin:10px 0; color: #111; font-size: 24px;"></h2>
-            <p id="m-desc" style="color:#444; font-size: 17px; line-height: 1.5; margin-bottom: 20px;"></p>
-            
-            <span id="m-stock" class="stock-tag"></span>
-            
-            <p style="font-weight:bold; margin-bottom:10px; font-size: 18px;">Selecione o Peso:</p>
-            <div id="m-vars" style="margin-bottom: 25px; display:flex; flex-wrap:wrap; justify-content: space-between;"></div>
-            
-            <div style="background:#f9f9f9; padding:20px; border-radius:20px; border:1px solid #eee;">
-                <p style="font-weight:bold; margin-bottom:15px; font-size: 18px; text-align: center;">Quantidade:</p>
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                    <div class="qty-control">
-                        <button class="qty-btn" onclick="changeQty(-1)">-</button>
-                        <span id="m-qty">1</span>
-                        <button class="qty-btn" onclick="changeQty(1)">+</button>
-                    </div>
-                    <div style="text-align:right">
-                        <span id="m-price" style="font-size:30px; font-weight:bold; color:var(--green)"></span>
-                    </div>
+            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:44px; height:44px; font-size: 20px; margin-bottom:15px;">✕</button>
+            <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
+            <div id="m-code" style="margin-top:15px; color:#777; font-size:12px;"></div>
+            <h2 id="m-title" style="margin:10px 0;"></h2>
+            <p id="m-desc" style="color:#666; font-size: 15px;"></p>
+            <div id="m-vars" style="margin: 15px 0; display:flex; flex-wrap:wrap;"></div>
+            <div style="background:#f9f9f9; padding:15px; border-radius:18px; display:flex; align-items:center; justify-content:space-between;">
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="changeQty(-1)">-</button>
+                    <span id="m-qty">1</span>
+                    <button class="qty-btn" onclick="changeQty(1)">+</button>
                 </div>
+                <span id="m-price" style="font-size:26px; font-weight:bold; color:var(--orange)"></span>
             </div>
-            
-            <button onclick="addTemp()" style="width:100%; padding:18px; margin-top:20px; border:2px dashed var(--green); background:white; color:var(--green); font-weight:bold; border-radius:15px; font-size:16px; cursor:pointer;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list" style="margin-top: 20px;"></div>
-            
-            <div style="text-align:right; font-weight:bold; font-size:24px; margin: 25px 0; color:#333;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
+            <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:12px;">+ ADICIONAR OUTRO PESO</button>
+            <div id="m-temp-list"></div>
+            <div style="text-align:right; font-weight:bold; font-size:22px; margin: 20px 0;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
             <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
         </div>
     </div>
 
     <div id="c-modal" class="modal">
         <div class="modal-inner">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:#eee; padding:10px 20px; border-radius:10px; font-weight:bold; color:#333; font-size: 18px; margin-bottom:25px; cursor:pointer;">⬅ VOLTAR</button>
-            <h2 style="margin-bottom:25px; font-size: 26px;">Meu Pedido</h2>
+            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--orange); font-size: 16px; margin-bottom:20px;">⬅ VOLTAR</button>
+            <h2 style="margin-bottom:20px;">Meu Pedido</h2>
             <div id="cart-list"></div>
-            <div style="display:flex; justify-content:space-between; margin:30px 0; font-size:24px; font-weight:bold; border-top: 2px solid #eee; padding-top: 20px;">
-                <span>TOTAL:</span><span style="color:var(--green)">R$ <span id="total">0.00</span></span>
+            <div style="display:flex; justify-content:space-between; margin:20px 0; font-size:22px; font-weight:bold; border-top: 2px solid #eee; padding-top: 15px;">
+                <span>TOTAL:</span><span style="color:var(--orange)">R$ <span id="total">0.00</span></span>
             </div>
-            <input type="text" id="u-nome" class="search-input" style="margin-bottom:15px; border: 2px solid #ccc;" placeholder="Escreva seu Nome">
-            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:25px; border: 2px solid #ccc;" placeholder="Escreva seu Bairro / Cidade">
-            <button onclick="sendZap()" style="width:100%; padding:22px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:20px; display:flex; align-items:center; justify-content:center; gap:12px; cursor:pointer;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30">
-                ENVIAR NO WHATSAPP
+            <input type="text" id="u-nome" class="search-input" style="margin-bottom:10px;" placeholder="Seu Nome">
+            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:10px;" placeholder="Bairro / Cidade">
+            <textarea id="u-obs" class="search-input" style="height:80px; margin-bottom:15px; resize:none;" placeholder="Observações do pedido..."></textarea>
+            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px; display:flex; align-items:center; justify-content:center; gap:10px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25"> ENVIAR NO WHATSAPP
             </button>
         </div>
     </div>
+
+    <a href="https://wa.me/5569999760742" target="_blank" style="position:fixed; bottom:20px; right:20px; background:#25d366; width:55px; height:55px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:3000;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30">
+    </a>
 </body>
 </html>
