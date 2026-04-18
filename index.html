@@ -1,305 +1,62 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<script>
+function renderVars() {
+    const varsContainer = document.getElementById('m-vars');
     
-    <link rel="manifest" href="manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Center Pet">
+    varsContainer.innerHTML = selectedProduct.variations.map((v, idx) => {
+        // Se estiver em promoção, o preço exibido no botão é o promoPrice. Caso contrário, é o preço da variação.
+        const precoBotao = selectedProduct.estaEmOferta ? selectedProduct.precoFinalCalculado : Number(v.price);
+        
+        const isActive = selectedVar.weight === v.weight ? 'active' : '';
+        
+        return `
+            <button class="var-btn ${isActive}" onclick="selectVar(${idx})">
+                <span class="var-weight">${v.weight}</span>
+                <span class="var-price">R$ ${precoBotao.toFixed(2)}</span>
+            </button>
+        `;
+    }).join('');
+}
+</script>
+
+<style>
+    .var-btn {
+        border: 2px solid #ddd;
+        padding: 10px;
+        border-radius: 12px;
+        background: white;
+        margin: 5px;
+        flex: 1;
+        min-width: 100px;
+        display: flex;
+        flex-direction: column; /* Coloca o preço embaixo do peso */
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
     
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="icon" type="image/png" href="icon-192.png">
-
-    <meta name="theme-color" content="#ff7800">
-    <title>Center Pet</title>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
-            authDomain: "birdselect-d96b8.firebaseapp.com",
-            projectId: "birdselect-d96b8",
-            storageBucket: "birdselect-d96b8.firebasestorage.app",
-            messagingSenderId: "758168536506",
-            appId: "1:758168536506:web:26cebc129c97b6da5b8983"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        // Inicializa o carrinho tentando ler do LocalStorage
-        let mainCart = JSON.parse(localStorage.getItem('centerpet_cart')) || [];
-        let tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
-
-        // Atualiza o badge do carrinho ao carregar a página
-        window.addEventListener('load', () => { updateBadge(); });
-
-        onSnapshot(doc(db, "config", "layout"), d => { 
-            if(d.exists() && d.data().logo) document.getElementById('logo').src = d.data().logo;
-        });
-
-        onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
-            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            renderGrid();
-        });
-
-        onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
-            const cats = snap.docs.map(d => d.data().nome);
-            document.getElementById('cat-bar').innerHTML = `<button class="cat-chip ${currentCat === 'Todos' ? 'active' : ''}" onclick="filterCat('Todos')">Todos</button>` + 
-                `<button class="cat-chip ${currentCat === 'Promoções' ? 'active' : ''}" onclick="filterCat('Promoções')">🔥 Promoções</button>` +
-                cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
-        });
-
-        window.filterCat = (c) => { currentCat = c; renderGrid(); };
-        window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
-
-        function renderGrid() {
-            let filtered = window.prods;
-            
-            // LÓGICA DE FILTRO DE PROMOÇÃO CORRIGIDA
-            if(currentCat === "Promoções") {
-                filtered = window.prods.filter(p => p.isPromo === true || (p.promoPrice && Number(p.promoPrice) > 0));
-            } else if(currentCat !== "Todos") {
-                filtered = window.prods.filter(p => p.cat === currentCat);
-            }
-
-            if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm));
-            
-            document.getElementById('grid').innerHTML = filtered.map(p => {
-                const onPromo = p.isPromo === true || (p.promoPrice && Number(p.promoPrice) > 0);
-                const precoExibido = onPromo ? Number(p.promoPrice) : p.price;
-                return `
-                <div class="card" onclick="openProduct('${p.id}')">
-                    ${onPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
-                    <div class="card-img"><img src="${p.img || ''}"></div>
-                    <div class="card-body">
-                        <h4>${p.name}</h4>
-                        <div class="price-container">
-                            <span class="a-partir">A partir de</span>
-                            <span class="price">R$ ${Number(precoExibido).toFixed(2)}</span>
-                        </div>
-                    </div>
-                    <button class="add-btn">+</button>
-                </div>`}).join('');
-        }
-
-        window.openProduct = (id) => {
-            selectedProduct = window.prods.find(p => p.id === id);
-            const onPromo = selectedProduct.isPromo === true || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
-            
-            // Garante que o preço seja o promocional se ativo
-            const valorBase = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[0].price;
-            selectedVar = {...selectedProduct.variations[0], price: valorBase};
-            
-            tempCart = []; qty = 1;
-            document.getElementById('m-img').src = selectedProduct.img || '';
-            document.getElementById('m-title').innerText = selectedProduct.name;
-            document.getElementById('m-desc').innerText = selectedProduct.desc || '';
-            document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
-            document.getElementById('m-stock').innerText = `Estoque disponível: ${selectedProduct.stock || 0} un.`;
-            
-            renderVars(); updateModalUI();
-            document.getElementById('p-modal').classList.add('active');
-        };
-
-        window.selectVar = (idx) => { 
-            const onPromo = selectedProduct.isPromo === true || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
-            const price = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[idx].price;
-            selectedVar = {...selectedProduct.variations[idx], price: price}; 
-            renderVars(); updateModalUI(); 
-        };
-
-        window.updateModalUI = () => {
-            document.getElementById('m-qty').innerText = qty;
-            document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
-            document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
-                <div class="c-item" style="display:flex; align-items:center; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
-                    <div style="flex:1"><b>${i.weight}</b> - R$ ${(i.price * i.qty).toFixed(2)}</div>
-                    <div class="qty-control" style="transform: scale(0.8);">
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
-                        <span>${i.qty}</span>
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
-                    </div>
-                </div>`).join('');
-            document.getElementById('m-subtotal').innerText = tempCart.reduce((a,b) => a + (b.price * b.qty), 0).toFixed(2);
-        };
-
-        window.updateTempQty = (idx, v) => {
-            tempCart[idx].qty += v;
-            if(tempCart[idx].qty < 1) tempCart.splice(idx, 1);
-            updateModalUI();
-        };
-
-        window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
-        function renderVars() { document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>`).join(''); }
-        
-        window.addTemp = () => { 
-            tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
-            qty = 1; updateModalUI(); 
-        };
-
-        window.confirmToMain = () => { 
-            if(tempCart.length > 0) mainCart = [...mainCart, ...tempCart]; 
-            else mainCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code }); 
-            
-            // SALVAR NO LOCALSTORAGE
-            saveCart();
-            updateBadge(); 
-            document.getElementById('p-modal').classList.remove('active'); 
-        };
-
-        function saveCart() {
-            localStorage.setItem('centerpet_cart', JSON.stringify(mainCart));
-        }
-
-        function updateBadge() { 
-            const b = document.getElementById('badge'); 
-            const totalItens = mainCart.reduce((acc, curr) => acc + curr.qty, 0);
-            b.innerText = totalItens; 
-            b.style.display = totalItens > 0 ? 'flex' : 'none'; 
-        }
-        
-        window.showMainCart = () => {
-            let total = 0;
-            document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => { 
-                total += i.price * i.qty; 
-                return `<div class="c-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid #eee;"><div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div><div class="qty-control" style="transform: scale(0.8);"><button class="qty-btn" onclick="updateMainQty(${idx}, -1)">-</button><span>${i.qty}</span><button class="qty-btn" onclick="updateMainQty(${idx}, 1)">+</button></div><div style="margin-left:10px">R$ ${(i.price * i.qty).toFixed(2)}</div></div>`; 
-            }).join('');
-            document.getElementById('total').innerText = total.toFixed(2);
-            document.getElementById('c-modal').classList.add('active');
-        };
-
-        window.updateMainQty = (idx, v) => { 
-            mainCart[idx].qty += v; 
-            if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); 
-            saveCart();
-            updateBadge(); 
-            showMainCart(); 
-        };
-        
-        window.sendZap = () => {
-            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value, obs = document.getElementById('u-obs').value;
-            if(!n || !c) return alert("Preencha Nome e Cidade!");
-            let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
-            if(obs) t += `*OBS:* ${obs}\n\n`;
-            t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
-            
-            // Limpa o carrinho após enviar
-            mainCart = [];
-            saveCart();
-            updateBadge();
-            
-            window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
-        };
-    </script>
-
-    <style>
-        :root { --orange: #ff7800; }
-        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 175px; -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom); }
-        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding-top: env(safe-area-inset-top); }
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
-        #logo { height: 45px; width: auto; object-fit: contain; }
-        .search-container { padding: 0 15px 10px; }
-        .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; font-size: 16px; outline: none; }
-        .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
-        .cat-chip { background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
-        .cat-chip.active { background: var(--orange); color: white; }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
-        .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; min-height: 220px; }
-        .card-img { width: 100%; height: 110px; }
-        .card img { width: 100%; height: 100%; object-fit: cover; }
-        .card-body { padding: 10px; display: flex; flex-grow: 1; flex-direction: column; }
-        .card h4 { margin: 0 0 5px 0; font-size: 13px; color: #333; height: 32px; overflow: hidden; line-height: 1.2; }
-        
-        .price-container { display: flex; flex-direction: column; margin-top: auto; }
-        .a-partir { font-size: 10px; color: #888; }
-        .price { font-weight: bold; color: var(--orange); font-size: 17px; }
-        
-        .promo-badge { position: absolute; top: 8px; left: 8px; background: #e74c3c; color: white; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; z-index: 10; }
-        .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--orange); color: white; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; }
-
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
-        .modal.active { transform: translateY(0); }
-        .modal-inner { padding: 30px 20px; }
-        
-        .qty-control { display: flex; align-items: center; gap: 15px; background: #f1f1f1; border-radius: 12px; padding: 8px 15px; }
-        .qty-btn { border: none; background: white; font-size: 24px; color: var(--orange); font-weight: bold; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .qty-control span { font-weight: bold; font-size: 20px; }
-        
-        .var-btn { border: 2px solid #ddd; padding: 12px; border-radius: 10px; background: white; margin: 4px; font-weight: bold; font-size: 14px; flex: 1; min-width: 80px; }
-        .var-btn.active { border-color: var(--orange); color: var(--orange); background: #fff5ee; }
-
-        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; }
-        .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 10px; display: block; }
-        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="top-bar">
-            <img id="logo" src="">
-            <button onclick="showMainCart()" style="border:none; background:none; font-size:28px; position:relative; padding: 5px;">
-                🛒<span id="badge" class="badge" style="display:none">0</span>
-            </button>
-        </div>
-        <div class="search-container">
-            <input type="text" class="search-input" placeholder="Buscar produto..." oninput="handleSearch(event)">
-        </div>
-        <div class="cat-bar" id="cat-bar"></div>
-    </header>
-
-    <div class="grid" id="grid"></div>
-
-    <div id="p-modal" class="modal">
-        <div class="modal-inner">
-            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:44px; height:44px; font-size: 20px; margin-bottom:15px;">✕</button>
-            <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
-            <div id="m-code" style="margin-top:15px; color:#777; font-size:12px;"></div>
-            <h2 id="m-title" style="margin:10px 0;"></h2>
-            <p id="m-desc" style="color:#666; font-size: 15px;"></p>
-            <span id="m-stock" class="stock-tag"></span>
-            <div id="m-vars" style="margin: 15px 0; display:flex; flex-wrap:wrap;"></div>
-            <div style="background:#f9f9f9; padding:15px; border-radius:18px; display:flex; align-items:center; justify-content:space-between;">
-                <div class="qty-control">
-                    <button class="qty-btn" onclick="changeQty(-1)">-</button>
-                    <span id="m-qty">1</span>
-                    <button class="qty-btn" onclick="changeQty(1)">+</button>
-                </div>
-                <span id="m-price" style="font-size:26px; font-weight:bold; color:var(--orange)"></span>
-            </div>
-            <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:12px;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list"></div>
-            <div style="text-align:right; font-weight:bold; font-size:22px; margin: 20px 0;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
-            <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
-        </div>
-    </div>
-
-    <div id="c-modal" class="modal">
-        <div class="modal-inner">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--orange); font-size: 16px; margin-bottom:20px;">⬅ VOLTAR</button>
-            <h2 style="margin-bottom:20px;">Meu Pedido</h2>
-            <div id="cart-list"></div>
-            <div style="display:flex; justify-content:space-between; margin:20px 0; font-size:22px; font-weight:bold; border-top: 2px solid #eee; padding-top: 15px;">
-                <span>TOTAL:</span><span style="color:var(--orange)">R$ <span id="total">0.00</span></span>
-            </div>
-            <input type="text" id="u-nome" class="search-input" style="margin-bottom:10px;" placeholder="Seu Nome">
-            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:10px;" placeholder="Bairro / Cidade">
-            <textarea id="u-obs" class="search-input" style="height:80px; margin-bottom:15px; resize:none;" placeholder="Alguma observação?"></textarea>
-            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px; display:flex; align-items:center; justify-content:center; gap:10px;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25"> ENVIAR NO WHATSAPP
-            </button>
-        </div>
-    </div>
-
-    <a href="https://wa.me/5569999760742" target="_blank" style="position:fixed; bottom:20px; right:20px; background:#25d366; width:55px; height:55px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:3000;">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30">
-    </a>
-</body>
-</html>
+    .var-btn.active {
+        border-color: var(--orange);
+        background: #fff5ee;
+    }
+    
+    .var-weight {
+        font-weight: bold;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .var-btn.active .var-weight {
+        color: var(--orange);
+    }
+    
+    .var-price {
+        font-size: 12px;
+        color: #888;
+    }
+    
+    .var-btn.active .var-price {
+        color: var(--orange);
+        font-weight: bold;
+    }
+</style>
