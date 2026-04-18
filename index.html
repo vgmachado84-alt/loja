@@ -1,344 +1,238 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
-import {
-  getAllProducts,
-  getProductById,
-  getAllCategories,
-  getCategoryById,
-  getStoreConfig,
-  initializeStoreConfig,
-} from "./db";
-import { productRatings, userFavorites } from "../drizzle/schema";
-import { getDb } from "./db";
-import { products, categories, storeConfig, InsertProduct, InsertCategory } from "../drizzle/schema";
-import { notifyOwner } from "./_core/notification";
-import { storagePut } from "../server/storage";
-import { nanoid } from "nanoid";
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2d5a27">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/2d5a27/ffffff?text=CP">
 
-// Helper to check if user is admin
-const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  if (ctx.user?.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
-  }
-  return next({ ctx });
-});
+    <title>Center Pet</title>
 
-export const appRouter = router({
-  system: systemRouter,
-  
-  auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
-    }),
-  }),
-
-  // File uploads
-  upload: router({
-    image: adminProcedure
-      .input(
-        z.object({
-          base64: z.string(),
-          filename: z.string().optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        try {
-          const buffer = Buffer.from(input.base64, "base64");
-          const filename = input.filename || `image-${nanoid()}.jpg`;
-          const key = `products/${nanoid()}-${filename}`;
-          
-          const { url } = await storagePut(key, buffer, "image/jpeg");
-          return { success: true, url };
-        } catch (error) {
-          console.error("Upload error:", error);
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Upload failed" });
-        }
-      }),
-  }),
-
-  // Store configuration
-  store: router({
-    getConfig: publicProcedure.query(async () => {
-      let config = await getStoreConfig();
-      if (!config) {
-        config = await initializeStoreConfig();
-      }
-      return config;
-    }),
-
-    updateConfig: adminProcedure
-      .input(
-        z.object({
-          storeName: z.string().min(1),
-          whatsappCountryCode: z.string().default("+55"),
-          whatsappNumber: z.string().min(1),
-          logoUrl: z.string().optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-        const fullWhatsappNumber = `${input.whatsappCountryCode}${input.whatsappNumber}`;
-        if (!/^\+\d{1,3}\d{8,15}$/.test(fullWhatsappNumber)) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "WhatsApp inválido. Use formato: +55 + número (ex: +5569999760742)",
-          });
+    <script type="module">
+        // Registro do Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
         }
 
-        const existing = await getStoreConfig();
-        if (!existing) {
-          await db.insert(storeConfig).values({
-            storeName: input.storeName,
-            whatsappCountryCode: input.whatsappCountryCode,
-            whatsappNumber: input.whatsappNumber,
-            logoUrl: input.logoUrl,
-          });
-        } else {
-          await db
-            .update(storeConfig)
-            .set({
-              storeName: input.storeName,
-              whatsappCountryCode: input.whatsappCountryCode,
-              whatsappNumber: input.whatsappNumber,
-              logoUrl: input.logoUrl,
-            })
-            .where(eq(storeConfig.id, existing.id));
-        }
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        return await getStoreConfig();
-      }),
-  }),
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
+            authDomain: "birdselect-d96b8.firebaseapp.com",
+            projectId: "birdselect-d96b8",
+            storageBucket: "birdselect-d96b8.firebasestorage.app",
+            messagingSenderId: "758168536506",
+            appId: "1:758168536506:web:26cebc129c97b6da5b8983"
+        };
 
-  // Orders (WhatsApp notifications)
-  orders: router({
-    notifyNewOrder: publicProcedure
-      .input(
-        z.object({
-          items: z.array(
-            z.object({
-              name: z.string(),
-              quantity: z.number(),
-              price: z.number(),
-            })
-          ),
-          total: z.number(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        try {
-          let itemsText = "";
-          input.items.forEach((item) => {
-            itemsText += `• ${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2)}\n`;
-          });
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // --- SUAS VARIÁVEIS ORIGINAIS ---
+        let mainCart = [], tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
 
-          const notificationContent = `Novo pedido recebido via WhatsApp!\n\nItens:\n${itemsText}\nTotal: R$ ${input.total.toFixed(2)}`;
-
-          await notifyOwner({
-            title: "🛒 Novo Pedido - Center Pet",
-            content: notificationContent,
-          });
-
-          return { success: true };
-        } catch (error) {
-          console.error("Error notifying owner:", error);
-          return { success: false };
-        }
-      }),
-  }),
-
-  // Categories
-  categories: router({
-    list: publicProcedure.query(async () => {
-      return await getAllCategories();
-    }),
-
-    create: adminProcedure
-      .input(z.object({ name: z.string().min(1) }))
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-        const result = await db.insert(categories).values({ name: input.name });
-        return { id: result[0].insertId, name: input.name };
-      }),
-
-    delete: adminProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-        await db.delete(categories).where(eq(categories.id, input.id));
-        return { success: true };
-      }),
-  }),
-
-  // Products
-  products: router({
-    list: publicProcedure.query(async () => {
-      return await getAllProducts();
-    }),
-
-    listByCategory: publicProcedure
-      .input(z.object({ categoryId: z.number() }))
-      .query(async ({ input }) => {
-        const db = await getDb();
-        if (!db) return [];
-
-        const allProducts = await getAllProducts();
-        return allProducts.filter((p) => p.categoryId === input.categoryId);
-      }),
-
-    listPromos: publicProcedure.query(async () => {
-      const allProducts = await getAllProducts();
-      return allProducts.filter((p) => p.isPromo);
-    }),
-
-    get: publicProcedure
-      .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return await getProductById(input.id);
-      }),
-
-    create: adminProcedure
-      .input(
-        z.object({
-          name: z.string().min(1),
-          description: z.string().optional(),
-          price: z.string().transform((v) => parseFloat(v)),
-          promoPrice: z.string().optional().transform((v) => (v ? parseFloat(v) : undefined)),
-          isPromo: z.boolean().default(false),
-          promoStartDate: z.string().optional().transform((v) => (v ? new Date(v) : undefined)),
-          promoEndDate: z.string().optional().transform((v) => (v ? new Date(v) : undefined)),
-          categoryId: z.number(),
-          imageUrl: z.string().optional(),
-          weight: z.string().optional(),
-          unit: z.string().default("kg"),
-          productCode: z.string().optional(),
-          expiryDate: z.string().optional().transform((v) => (v && v.trim() ? new Date(v) : null)).nullable(),
-          packages: z.string().optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-        const result = await db.insert(products).values({
-          name: input.name,
-          description: input.description,
-          price: input.price.toString(),
-          promoPrice: input.promoPrice?.toString(),
-          isPromo: input.isPromo,
-          promoStartDate: input.promoStartDate,
-          promoEndDate: input.promoEndDate,
-          categoryId: input.categoryId,
-          imageUrl: input.imageUrl,
-          weight: input.weight,
-          unit: input.unit,
-          productCode: input.productCode,
-          expiryDate: input.expiryDate,
-          packages: input.packages,
-        } as any);
-
-        return { id: result[0].insertId, ...input };
-      }),
-
-    update: adminProcedure
-      .input(
-        z.object({
-          id: z.number(),
-          name: z.string().min(1),
-          description: z.string().optional(),
-          price: z.string().transform((v) => parseFloat(v)),
-          promoPrice: z.string().optional().transform((v) => (v ? parseFloat(v) : undefined)),
-          isPromo: z.boolean().default(false),
-          promoStartDate: z.string().optional().transform((v) => (v ? new Date(v) : undefined)),
-          promoEndDate: z.string().optional().transform((v) => (v ? new Date(v) : undefined)),
-          categoryId: z.number(),
-          imageUrl: z.string().optional(),
-          weight: z.string().optional(),
-          unit: z.string().default("kg"),
-          productCode: z.string().optional(),
-          expiryDate: z.string().optional().transform((v) => (v && v.trim() ? new Date(v) : null)).nullable(),
-          packages: z.string().optional(),
-          stock: z.string().optional().transform((v) => (v ? parseInt(v) : undefined)),
-        })
-      )
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-        console.log("DEBUG UPDATE:", {
-          expiryDate: input.expiryDate,
-          expiryDateType: typeof input.expiryDate,
-          stock: input.stock,
+        // Carregamento da Logo
+        onSnapshot(doc(db, "config", "layout"), d => { 
+            if(d.exists() && d.data().logo) document.getElementById('logo').src = d.data().logo;
         });
 
-        const updateData: any = {
-          name: input.name,
-          description: input.description,
-          price: input.price.toString(),
-          promoPrice: input.promoPrice?.toString(),
-          isPromo: input.isPromo,
-          promoStartDate: input.promoStartDate,
-          promoEndDate: input.promoEndDate,
-          categoryId: input.categoryId,
-          imageUrl: input.imageUrl,
-          weight: input.weight,
-          unit: input.unit,
-          productCode: input.productCode,
-          packages: input.packages,
-          stock: input.stock,
-        };
-        
-        if (input.expiryDate instanceof Date) {
-          updateData.expiryDate = input.expiryDate;
-        } else if (input.expiryDate === null) {
-          updateData.expiryDate = null;
+        // Carregamento das Categorias
+        onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
+            const cats = snap.docs.map(d => d.data().nome);
+            document.getElementById('cat-bar').innerHTML = `<button class="cat-chip ${currentCat === 'Todos' ? 'active' : ''}" onclick="filterCat('Todos')">Todos</button>` + 
+                cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
+        });
+
+        // Carregamento dos Produtos
+        onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
+            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            renderGrid();
+        });
+
+        window.filterCat = (c) => { currentCat = c; renderGrid(); };
+        window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
+
+        function renderGrid() {
+            let filtered = currentCat === "Todos" ? window.prods : window.prods.filter(p => p.cat === currentCat);
+            if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm) || (p.code && p.code.toLowerCase().includes(searchTerm)));
+            
+            document.getElementById('grid').innerHTML = filtered.map(p => `
+                <div class="card" onclick="openProduct('${p.id}')">
+                    <div class="card-img"><img src="${p.img || ''}"></div>
+                    <div class="card-body">
+                        <h4>${p.name}</h4>
+                        <div class="price-container">
+                            <span class="a-partir">A partir de</span>
+                            <span class="price">R$ ${p.price.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <button class="add-btn">+</button>
+                </div>`).join('');
         }
 
-        await db
-          .update(products)
-          .set(updateData)
-          .where(eq(products.id, input.id));
+        window.openProduct = (id) => {
+            selectedProduct = window.prods.find(p => p.id === id);
+            selectedVar = selectedProduct.variations[0];
+            tempCart = []; qty = 1;
+            document.getElementById('m-img').src = selectedProduct.img || '';
+            document.getElementById('m-title').innerText = selectedProduct.name;
+            document.getElementById('m-desc').innerText = selectedProduct.desc || '';
+            document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
+            renderVars(); updateModalUI();
+            document.getElementById('p-modal').classList.add('active');
+        };
 
-        return { ...input };
-      }),
+        window.updateTempQty = (idx, v) => {
+            tempCart[idx].qty += v;
+            if(tempCart[idx].qty < 1) tempCart.splice(idx, 1);
+            updateModalUI();
+        };
 
-    delete: adminProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        function updateModalUI() {
+            document.getElementById('m-qty').innerText = qty;
+            document.getElementById('m-price').innerText = `R$ ${(selectedVar.price * qty).toFixed(2)}`;
+            document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
+                <div class="c-item">
+                    <div style="flex:1"><b>${i.weight}</b> - R$ ${(i.price * i.qty).toFixed(2)}</div>
+                    <div class="qty-control">
+                        <button onclick="updateTempQty(${idx}, -1)">-</button>
+                        <span>${i.qty}</span>
+                        <button onclick="updateTempQty(${idx}, 1)">+</button>
+                    </div>
+                </div>`).join('');
+            document.getElementById('m-subtotal').innerText = tempCart.reduce((a,b) => a + (b.price * b.qty), 0).toFixed(2);
+        }
 
-        await db.delete(products).where(eq(products.id, input.id));
-        return { success: true };
-      }),
+        window.selectVar = (idx) => { selectedVar = selectedProduct.variations[idx]; renderVars(); updateModalUI(); };
+        window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
+        function renderVars() { document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `<button class="chip ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>`).join(''); }
+        
+        window.addTemp = () => { 
+            const existing = tempCart.find(i => i.weight === selectedVar.weight);
+            if(existing) existing.qty += qty;
+            else tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
+            qty = 1; updateModalUI(); 
+        };
 
-    toggleActive: adminProcedure
-      .input(z.object({ id: z.number(), isActive: z.boolean() }))
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        window.confirmToMain = () => { 
+            if(tempCart.length > 0) mainCart = [...mainCart, ...tempCart]; 
+            else mainCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code }); 
+            updateBadge(); document.getElementById('p-modal').classList.remove('active'); 
+        };
 
-        await db
-          .update(products)
-          .set({ isActive: input.isActive })
-          .where(eq(products.id, input.id));
+        function updateBadge() { const b = document.getElementById('badge'); b.innerText = mainCart.length; b.style.display = mainCart.length > 0 ? 'flex' : 'none'; }
+        
+        window.showMainCart = () => {
+            let total = 0;
+            document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => { 
+                total += i.price * i.qty; 
+                return `<div class="c-item"><div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div><div class="qty-control"><button onclick="updateMainQty(${idx}, -1)">-</button><span>${i.qty}</span><button onclick="updateMainQty(${idx}, 1)">+</button></div><div style="margin-left:10px">R$ ${(i.price * i.qty).toFixed(2)}</div></div>`; 
+            }).join('');
+            document.getElementById('total').innerText = total.toFixed(2);
+            document.getElementById('c-modal').classList.add('active');
+        };
 
-        return { success: true, isActive: input.isActive };
-      }),
-  }),
-});
+        window.updateMainQty = (idx, v) => { mainCart[idx].qty += v; if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); updateBadge(); showMainCart(); };
+        
+        window.sendZap = () => {
+            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
+            if(!n || !c) return alert("Preencha Nome e Cidade!");
+            let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
+            mainCart.forEach(i => { t += `📦 ${i.name} (${i.weight})\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
+            t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
+            window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
+        };
+    </script>
 
-export type AppRouter = typeof appRouter;
+    <style>
+        :root { --green: #2d5a27; }
+        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: calc(145px + env(safe-area-inset-top)); -webkit-tap-highlight-color: transparent; }
+        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; padding-top: env(safe-area-inset-top); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; height: 50px; }
+        #logo { max-height: 45px; max-width: 150px; object-fit: contain; }
+        .search-container { padding: 0 15px 10px; }
+        .search-input { width: 100%; padding: 12px 15px; border-radius: 20px; border: 1px solid #eee; background: #f5f5f5; box-sizing: border-box; outline:none; font-size: 16px; }
+        .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
+        .cat-bar::-webkit-scrollbar { display: none; }
+        .cat-chip { background: #f0f0f0; border: none; padding: 8px 18px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
+        .cat-chip.active { background: var(--green); color: white; }
+        
+        /* Grid */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        .card { background: white; border-radius: 12px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; height: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .card-img { width: 100%; height: 110px; }
+        .card img { width: 100%; height: 100%; object-fit: cover; }
+        .card-body { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .card h4 { margin: 0 0 10px 0; font-size: 14px; color: #333; line-height: 1.2; height: 34px; overflow: hidden; }
+        .price { font-weight: bold; color: var(--green); font-size: 17px; }
+        .a-partir { font-size: 10px; color: #888; }
+        .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--green); color: white; border: none; width: 32px; height: 32px; border-radius: 10px; font-size: 20px; }
+
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; overflow-y: auto; }
+        .modal.active { transform: translateY(0); }
+        .qty-control { display: flex; align-items: center; gap: 12px; background: #f0f0f0; padding: 5px 12px; border-radius: 20px; }
+        .qty-control button { border: none; background: none; font-size: 22px; color: var(--green); font-weight: bold; }
+        .btn-buy { background: var(--green); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; }
+        .chip { border: 1px solid #ddd; padding: 8px 14px; border-radius: 8px; background: white; margin: 4px; font-weight: bold; font-size: 13px; }
+        .chip.active { border-color: var(--green); color: var(--green); background: #f0f7f0; }
+        .c-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
+        .badge { position: absolute; top: 0; right: 0; background: red; color: white; font-size: 10px; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="top-bar">
+            <img id="logo">
+            <button onclick="showMainCart()" style="border:none; background:none; font-size:26px; position:relative;">
+                🛒<span id="badge" class="badge" style="display:none">0</span>
+            </button>
+        </div>
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Buscar produto..." oninput="handleSearch(event)">
+        </div>
+        <div class="cat-bar" id="cat-bar"></div>
+    </header>
+
+    <div class="grid" id="grid"></div>
+
+    <div id="p-modal" class="modal">
+        <button onclick="document.getElementById('p-modal').classList.remove('active')" style="margin:20px; border:none; background:#eee; border-radius:50%; width:44px; height:44px;">✕</button>
+        <div style="padding:0 25px">
+            <img id="m-img" style="width:100%; border-radius:20px; height:220px; object-fit:cover;">
+            <div id="m-code" style="margin-top:15px; color:#888; font-size:12px;"></div>
+            <h2 id="m-title" style="margin:8px 0"></h2>
+            <p id="m-desc" style="color:#666; font-size: 15px;"></p>
+            <div id="m-vars" style="margin-bottom:20px; display:flex; flex-wrap:wrap"></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#f9f9f9; padding:20px; border-radius:18px;">
+                <div class="qty-control"><button onclick="changeQty(-1)">-</button><span id="m-qty">1</span><button onclick="changeQty(1)">+</button></div>
+                <div style="text-align:right"><span id="m-price" style="font-size:24px; font-weight:bold; color:var(--green)"></span></div>
+            </div>
+            <button onclick="addTemp()" style="width:100%; padding:12px; margin-top:15px; border:1px dashed var(--green); background:none; color:var(--green); font-weight:bold;">+ ADICIONAR OUTRO PESO</button>
+            <div id="m-temp-list"></div>
+            <div style="text-align:right; font-weight:bold; font-size:22px; margin-top:20px">Total: R$ <span id="m-subtotal">0.00</span></div>
+            <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
+        </div>
+    </div>
+
+    <div id="c-modal" class="modal">
+        <div style="padding:20px">
+            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; font-weight:bold; color:var(--green)">⬅ VOLTAR</button>
+            <h2>Meu Pedido</h2>
+            <div id="cart-list"></div>
+            <div style="display:flex; justify-content:space-between; margin:20px 0; font-size:24px; font-weight:bold">
+                <span>TOTAL:</span><span style="color:var(--green)">R$ <span id="total">0.00</span></span>
+            </div>
+            <input type="text" id="u-nome" class="search-input" style="margin-bottom:10px" placeholder="Seu Nome">
+            <input type="text" id="u-cidade" class="search-input" style="margin-bottom:20px" placeholder="Bairro / Cidade">
+            <button onclick="sendZap()" style="width:100%; padding:20px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px">ENVIAR NO WHATSAPP</button>
+        </div>
+    </div>
+</body>
+</html>

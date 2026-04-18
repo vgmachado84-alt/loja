@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Center Pet - Gestão Completa</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
+            authDomain: "birdselect-d96b8.firebaseapp.com",
+            projectId: "birdselect-d96b8",
+            storageBucket: "birdselect-d96b8.firebasestorage.app",
+            messagingSenderId: "758168536506",
+            appId: "1:758168536506:web:26cebc129c97b6da5b8983"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let photoBase64 = "", editId = null;
+
+        // --- NAVEGAÇÃO ---
+        window.openTab = (t) => {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            if(event) event.currentTarget.classList.add('active');
+        };
+
+        // --- CATEGORIAS ---
+        const catList = document.getElementById('cat-list');
+        Sortable.create(catList, { animation: 150, onEnd: () => saveOrder("categorias", catList) });
+
+        onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
+            catList.innerHTML = snap.docs.map(d => `
+                <div class="item" data-id="${d.id}">
+                    <span>☰ ${d.data().nome}</span>
+                    <button onclick="deleteItem('categorias', '${d.id}')" style="color:red; background:none; border:none;">🗑️</button>
+                </div>
+            `).join('');
+            document.getElementById('cat-select').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
+        });
+
+        window.addCategory = async () => {
+            const nome = document.getElementById('new-cat').value;
+            if(nome) await addDoc(collection(db, "categorias"), { nome, order: 0 });
+            document.getElementById('new-cat').value = "";
+        };
+
+        // --- PRODUTOS ---
+        const prodList = document.getElementById('prod-list');
+        Sortable.create(prodList, { animation: 150, onEnd: () => saveOrder("produtos", prodList) });
+
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                };
+            });
+        }
+
+        window.handleFile = async (e) => {
+            const file = e.target.files[0];
+            if(file) { photoBase64 = await compressImage(file); alert("Foto carregada com sucesso!"); }
+        };
+
+        window.addVar = (w="", p="", promo=false) => {
+            const div = document.createElement('div');
+            div.className = 'var-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Peso" value="${w}" class="v-w" style="flex:2">
+                <input type="number" placeholder="Preço" value="${p}" class="v-p" style="flex:2">
+                <label style="flex:1; font-size:10px">Oferta?<input type="checkbox" class="v-promo" ${promo ? 'checked' : ''}></label>
+                <button onclick="this.parentElement.remove()">X</button>`;
+            document.getElementById('vars').appendChild(div);
+        };
+
+        window.saveProduct = async () => {
+            const vars = Array.from(document.querySelectorAll('.var-row')).map(r => ({
+                weight: r.querySelector('.v-w').value,
+                price: parseFloat(r.querySelector('.v-p').value),
+                isPromo: r.querySelector('.v-promo').checked
+            }));
+            const data = {
+                code: document.getElementById('code').value,
+                name: document.getElementById('name').value,
+                desc: document.getElementById('desc').value,
+                cat: document.getElementById('cat-select').value,
+                stock: document.getElementById('stock').value,
+                variations: vars,
+                price: vars[0]?.price || 0,
+                updatedAt: serverTimestamp()
+            };
+            if(photoBase64) data.img = photoBase64;
+            
+            try {
+                if(editId) await updateDoc(doc(db, "produtos", editId), data);
+                else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
+                alert("Produto Salvo!");
+                location.reload();
+            } catch (e) { alert("Erro ao salvar: " + e.message); }
+        };
+
+        onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
+            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            prodList.innerHTML = window.prods.map(p => `
+                <div class="item" data-id="${p.id}">
+                    <div style="flex:1">
+                        <small style="color:#2d5a27; font-weight:bold;">[CÓD: ${p.code || '---'}]</small> | 
+                        <small style="color:#007bff; font-weight:bold;">ESTOQUE: ${p.stock || '0'}</small><br>
+                        <b style="font-size:16px">${p.name}</b>
+                    </div>
+                    <div>
+                        <button onclick="editProd('${p.id}')">✏️</button>
+                        <button onclick="deleteItem('produtos', '${p.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        });
+
+        window.editProd = (id) => {
+            const p = window.prods.find(i => i.id === id);
+            editId = id;
+            document.getElementById('code').value = p.code || "";
+            document.getElementById('name').value = p.name;
+            document.getElementById('desc').value = p.desc || "";
+            document.getElementById('stock').value = p.stock || "";
+            document.getElementById('cat-select').value = p.cat;
+            document.getElementById('vars').innerHTML = "";
+            photoBase64 = p.img || "";
+            p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo));
+            openTab('tab-cadastro');
+        };
+
+        // --- CONFIGURAÇÕES (LOGO) ---
+        window.handleLogo = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                await setDoc(doc(db, "config", "layout"), { logo: event.target.result }, { merge: true });
+                alert("Logo atualizada!");
+            };
+            reader.readAsDataURL(file);
+        };
+
+        async function saveOrder(col, listEl) {
+            const items = listEl.querySelectorAll('.item');
+            for(let i=0; i < items.length; i++) {
+                await updateDoc(doc(db, col, items[i].dataset.id), { order: i });
+            }
+        }
+
+        window.deleteItem = async (col, id) => { if(confirm("Deseja realmente excluir?")) await deleteDoc(doc(db, col, id)); };
+    </script>
+    <style>
+        :root { --green: #2d5a27; }
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
+        .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; }
+        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; }
+        .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
+        .tab-content { display: none; padding: 15px; max-width: 550px; margin: auto; }
+        .tab-content.active { display: block; }
+        .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
+        .var-row { display: flex; gap: 5px; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; align-items: center; }
+        .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        h3 { margin-top: 0; color: var(--green); }
+    </style>
+</head>
+<body>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('tab-cadastro')">PRODUTOS</button>
+        <button class="tab-btn" onclick="openTab('tab-categoria')">CATEGORIAS</button>
+        <button class="tab-btn" onclick="openTab('tab-config')">AJUSTES</button>
+    </div>
+
+    <div id="tab-cadastro" class="tab-content active">
+        <div class="box">
+            <h3>Gerenciar Produto</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="code" placeholder="Código (Ex: 001)">
+                <input type="number" id="stock" placeholder="Estoque">
+            </div>
+            <input type="text" id="name" placeholder="Nome do Produto">
+            <textarea id="desc" placeholder="Descrição/Detalhes"></textarea>
+            <label style="font-size: 12px; color: #666;">Categoria:</label>
+            <select id="cat-select"></select>
+            <label style="font-size: 12px; color: #666;">Foto do Produto:</label>
+            <input type="file" accept="image/*" onchange="handleFile(event)">
+            
+            <div id="vars" style="margin-top:10px;"></div>
+            <button onclick="addVar()" style="width:100%; padding:10px; background:#f0f7f0; border:1px dashed var(--green); color:var(--green); font-weight:bold; cursor:pointer">+ Adicionar Peso e Preço</button>
+            
+            <button class="btn-save" onclick="saveProduct()">SALVAR PRODUTO</button>
+        </div>
+        <div id="prod-list"></div>
+    </div>
+
+    <div id="tab-categoria" class="tab-content">
+        <div class="box">
+            <h3>Categorias</h3>
+            <p style="font-size: 12px; color: #666;">Arraste para reordenar como elas aparecem no menu.</p>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="new-cat" placeholder="Nova Categoria">
+                <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px 15px; border-radius:8px; font-weight:bold">ADD</button>
+            </div>
+        </div>
+        <div id="cat-list"></div>
+    </div>
+
+    <div id="tab-config" class="tab-content">
+        <div class="box">
+            <h3>Configurações da Vitrine</h3>
+            <label>Alterar Logo Superior:</label>
+            <input type="file" accept="image/*" onchange="handleLogo(event)">
+            <p style="font-size: 12px; color: #888; margin-top: 15px;">Dica: Use imagens com fundo transparente (PNG) para um acabamento melhor.</p>
+        </div>
+    </div>
+</body>
+</html>
