@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
+    <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Center Pet">
-    <link rel="manifest" href="manifest.json">
     
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" href="icon-192.png">
+
     <meta name="theme-color" content="#ff7800">
     <title>Center Pet</title>
 
@@ -29,21 +32,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        let mainCart = [], tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
+        // Inicializa o carrinho tentando ler do LocalStorage
+        let mainCart = JSON.parse(localStorage.getItem('centerpet_cart')) || [];
+        let tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
 
-        // Carregar Logo
+        // Atualiza o badge do carrinho ao carregar a página
+        window.addEventListener('load', () => { updateBadge(); });
+
         onSnapshot(doc(db, "config", "layout"), d => { 
             if(d.exists() && d.data().logo) document.getElementById('logo').src = d.data().logo;
         });
 
-        // Carregar Produtos com LOGICA DE PROMOÇÃO BLINDADA
         onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
-            window.prods = snap.docs.map(d => {
-                const data = d.id ? {id: d.id, ...d.data()} : d.data();
-                // Normaliza a promoção: se promoPrice for > 0, assume que está em promoção
-                data.isOnPromo = data.isPromo === true || (data.promoPrice && Number(data.promoPrice) > 0);
-                return data;
-            });
+            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
             renderGrid();
         });
 
@@ -59,36 +60,43 @@
 
         function renderGrid() {
             let filtered = window.prods;
+            
+            // LÓGICA DE FILTRO DE PROMOÇÃO CORRIGIDA
             if(currentCat === "Promoções") {
-                filtered = window.prods.filter(p => p.isOnPromo);
+                filtered = window.prods.filter(p => p.isPromo === true || (p.promoPrice && Number(p.promoPrice) > 0));
             } else if(currentCat !== "Todos") {
                 filtered = window.prods.filter(p => p.cat === currentCat);
             }
+
             if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm));
             
-            document.getElementById('grid').innerHTML = filtered.map(p => `
+            document.getElementById('grid').innerHTML = filtered.map(p => {
+                const onPromo = p.isPromo === true || (p.promoPrice && Number(p.promoPrice) > 0);
+                const precoExibido = onPromo ? Number(p.promoPrice) : p.price;
+                return `
                 <div class="card" onclick="openProduct('${p.id}')">
-                    ${p.isOnPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
+                    ${onPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
                     <div class="card-img"><img src="${p.img || ''}"></div>
                     <div class="card-body">
                         <h4>${p.name}</h4>
                         <div class="price-container">
                             <span class="a-partir">A partir de</span>
-                            <span class="price">R$ ${Number(p.isOnPromo ? p.promoPrice : p.price).toFixed(2)}</span>
+                            <span class="price">R$ ${Number(precoExibido).toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
-                </div>`).join('');
+                </div>`}).join('');
         }
 
         window.openProduct = (id) => {
             selectedProduct = window.prods.find(p => p.id === id);
-            // Se estiver em promoção, o preço da variação é substituído pelo promoPrice
-            const finalPrice = selectedProduct.isOnPromo ? Number(selectedProduct.promoPrice) : Number(selectedProduct.variations[0].price);
+            const onPromo = selectedProduct.isPromo === true || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
             
-            selectedVar = { ...selectedProduct.variations[0], price: finalPrice };
+            // Garante que o preço seja o promocional se ativo
+            const valorBase = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[0].price;
+            selectedVar = {...selectedProduct.variations[0], price: valorBase};
+            
             tempCart = []; qty = 1;
-            
             document.getElementById('m-img').src = selectedProduct.img || '';
             document.getElementById('m-title').innerText = selectedProduct.name;
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
@@ -99,10 +107,11 @@
             document.getElementById('p-modal').classList.add('active');
         };
 
-        window.selectVar = (idx) => {
-            const finalPrice = selectedProduct.isOnPromo ? Number(selectedProduct.promoPrice) : Number(selectedProduct.variations[idx].price);
-            selectedVar = { ...selectedProduct.variations[idx], price: finalPrice };
-            renderVars(); updateModalUI();
+        window.selectVar = (idx) => { 
+            const onPromo = selectedProduct.isPromo === true || (selectedProduct.promoPrice && Number(selectedProduct.promoPrice) > 0);
+            const price = onPromo ? Number(selectedProduct.promoPrice) : selectedProduct.variations[idx].price;
+            selectedVar = {...selectedProduct.variations[idx], price: price}; 
+            renderVars(); updateModalUI(); 
         };
 
         window.updateModalUI = () => {
@@ -127,11 +136,7 @@
         };
 
         window.changeQty = (v) => { qty = Math.max(1, qty + v); updateModalUI(); };
-        function renderVars() { 
-            document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `
-                <button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>
-            `).join(''); 
-        }
+        function renderVars() { document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">${v.weight}</button>`).join(''); }
         
         window.addTemp = () => { 
             tempCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code });
@@ -141,13 +146,22 @@
         window.confirmToMain = () => { 
             if(tempCart.length > 0) mainCart = [...mainCart, ...tempCart]; 
             else mainCart.push({ ...selectedVar, qty, name: selectedProduct.name, code: selectedProduct.code }); 
-            updateBadge(); document.getElementById('p-modal').classList.remove('active'); 
+            
+            // SALVAR NO LOCALSTORAGE
+            saveCart();
+            updateBadge(); 
+            document.getElementById('p-modal').classList.remove('active'); 
         };
+
+        function saveCart() {
+            localStorage.setItem('centerpet_cart', JSON.stringify(mainCart));
+        }
 
         function updateBadge() { 
             const b = document.getElementById('badge'); 
-            b.innerText = mainCart.length; 
-            b.style.display = mainCart.length > 0 ? 'flex' : 'none'; 
+            const totalItens = mainCart.reduce((acc, curr) => acc + curr.qty, 0);
+            b.innerText = totalItens; 
+            b.style.display = totalItens > 0 ? 'flex' : 'none'; 
         }
         
         window.showMainCart = () => {
@@ -160,64 +174,71 @@
             document.getElementById('c-modal').classList.add('active');
         };
 
-        window.updateMainQty = (idx, v) => { mainCart[idx].qty += v; if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); updateBadge(); showMainCart(); };
+        window.updateMainQty = (idx, v) => { 
+            mainCart[idx].qty += v; 
+            if(mainCart[idx].qty < 1) mainCart.splice(idx, 1); 
+            saveCart();
+            updateBadge(); 
+            showMainCart(); 
+        };
         
         window.sendZap = () => {
             const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value, obs = document.getElementById('u-obs').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
             let t = `*CENTER PET - NOVO PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${Number(i.price).toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
+            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\nCód: ${i.code || 'S/C'}\n${i.qty}x R$ ${i.price.toFixed(2)} = *R$ ${(i.qty * i.price).toFixed(2)}*\n\n`; });
             if(obs) t += `*OBS:* ${obs}\n\n`;
-            t += `*TOTAL: R$ ${document.getElementById('total').innerText}*`;
+            t += `*VALOR TOTAL: R$ ${document.getElementById('total').innerText}*`;
+            
+            // Limpa o carrinho após enviar
+            mainCart = [];
+            saveCart();
+            updateBadge();
+            
             window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
         };
     </script>
 
     <style>
         :root { --orange: #ff7800; }
-        body { 
-            font-family: sans-serif; margin: 0; background: #f8faf9; 
-            padding-top: 175px; -webkit-tap-highlight-color: transparent; 
-            min-height: 100vh; padding-bottom: env(safe-area-inset-bottom);
-        }
+        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 175px; -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom); }
         header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding-top: env(safe-area-inset-top); }
         .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
         #logo { height: 45px; width: auto; object-fit: contain; }
-        
         .search-container { padding: 0 15px 10px; }
-        .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; font-size: 16px; outline: none; box-sizing: border-box; }
+        .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; font-size: 16px; outline: none; }
         .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
         .cat-chip { background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 20px; white-space: nowrap; font-weight: bold; color: #666; font-size: 13px; }
         .cat-chip.active { background: var(--orange); color: white; }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
         .card { background: white; border-radius: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid #eee; overflow: hidden; min-height: 220px; }
-        .card-img { width: 100%; height: 110px; background: #f9f9f9; }
+        .card-img { width: 100%; height: 110px; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
-        .card-body { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; }
-        .card h4 { margin: 0 0 5px 0; font-size: 13px; color: #333; line-height: 1.2; height: 32px; overflow: hidden; }
+        .card-body { padding: 10px; display: flex; flex-grow: 1; flex-direction: column; }
+        .card h4 { margin: 0 0 5px 0; font-size: 13px; color: #333; height: 32px; overflow: hidden; line-height: 1.2; }
         
         .price-container { display: flex; flex-direction: column; margin-top: auto; }
-        .a-partir { font-size: 10px; color: #888; display: block; }
-        .price { font-weight: bold; color: var(--orange); font-size: 17px; display: block; }
+        .a-partir { font-size: 10px; color: #888; }
+        .price { font-weight: bold; color: var(--orange); font-size: 17px; }
         
-        .promo-badge { position: absolute; top: 8px; left: 8px; background: #e74c3c; color: white; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; z-index: 5; }
+        .promo-badge { position: absolute; top: 8px; left: 8px; background: #e74c3c; color: white; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; z-index: 10; }
         .add-btn { position: absolute; bottom: 10px; right: 10px; background: var(--orange); color: white; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; }
 
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
-        .modal-inner { padding: 30px 20px; padding-bottom: 60px; }
+        .modal-inner { padding: 30px 20px; }
         
         .qty-control { display: flex; align-items: center; gap: 15px; background: #f1f1f1; border-radius: 12px; padding: 8px 15px; }
         .qty-btn { border: none; background: white; font-size: 24px; color: var(--orange); font-weight: bold; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .qty-control span { font-weight: bold; font-size: 20px; }
         
-        .var-btn { border: 2px solid #ddd; padding: 12px; border-radius: 10px; background: white; margin: 4px; font-weight: bold; font-size: 14px; flex: 1; min-width: 80px; text-align: center; }
+        .var-btn { border: 2px solid #ddd; padding: 12px; border-radius: 10px; background: white; margin: 4px; font-weight: bold; font-size: 14px; flex: 1; min-width: 80px; }
         .var-btn.active { border-color: var(--orange); color: var(--orange); background: #fff5ee; }
 
-        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; cursor: pointer; }
+        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 18px; margin-top: 15px; }
         .stock-tag { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 10px; display: block; }
-        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
+        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 11px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; }
     </style>
 </head>
 <body>
@@ -242,13 +263,10 @@
             <img id="m-img" style="width:100%; border-radius:20px; height:250px; object-fit:cover;">
             <div id="m-code" style="margin-top:15px; color:#777; font-size:12px;"></div>
             <h2 id="m-title" style="margin:10px 0;"></h2>
-            <p id="m-desc" style="color:#666; font-size: 15px; margin-bottom: 10px;"></p>
+            <p id="m-desc" style="color:#666; font-size: 15px;"></p>
             <span id="m-stock" class="stock-tag"></span>
-            
-            <p style="font-weight:bold; font-size:14px; margin-bottom:10px;">Opções de Peso:</p>
-            <div id="m-vars" style="margin-bottom: 15px; display:flex; flex-wrap:wrap;"></div>
-            
-            <div style="background:#f9f9f9; padding:15px; border-radius:18px; display:flex; align-items:center; justify-content:space-between; border:1px solid #eee;">
+            <div id="m-vars" style="margin: 15px 0; display:flex; flex-wrap:wrap;"></div>
+            <div style="background:#f9f9f9; padding:15px; border-radius:18px; display:flex; align-items:center; justify-content:space-between;">
                 <div class="qty-control">
                     <button class="qty-btn" onclick="changeQty(-1)">-</button>
                     <span id="m-qty">1</span>
@@ -256,10 +274,8 @@
                 </div>
                 <span id="m-price" style="font-size:26px; font-weight:bold; color:var(--orange)"></span>
             </div>
-            
             <button onclick="addTemp()" style="width:100%; padding:14px; margin-top:15px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:12px;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list" style="margin-top:10px;"></div>
-            
+            <div id="m-temp-list"></div>
             <div style="text-align:right; font-weight:bold; font-size:22px; margin: 20px 0;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
             <button class="btn-buy" onclick="confirmToMain()">✅ ADICIONAR AO CARRINHO</button>
         </div>
@@ -275,7 +291,7 @@
             </div>
             <input type="text" id="u-nome" class="search-input" style="margin-bottom:10px;" placeholder="Seu Nome">
             <input type="text" id="u-cidade" class="search-input" style="margin-bottom:10px;" placeholder="Bairro / Cidade">
-            <textarea id="u-obs" class="search-input" style="height:80px; margin-bottom:15px; resize:none;" placeholder="Observações..."></textarea>
+            <textarea id="u-obs" class="search-input" style="height:80px; margin-bottom:15px; resize:none;" placeholder="Alguma observação?"></textarea>
             <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:18px; display:flex; align-items:center; justify-content:center; gap:10px;">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="25"> ENVIAR NO WHATSAPP
             </button>
