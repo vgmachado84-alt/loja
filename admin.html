@@ -3,97 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Center Pet - Gestão Completa</title>
+    <title>Admin Center Pet</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root { --green: #2d5a27; --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
         
         /* LOGIN */
-        #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; padding: 20px; }
-        .login-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        .login-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
-        .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-
-        /* ADMIN */
+        #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #eee; }
+        .login-card { background: white; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        /* INTERFACE */
         #admin-wrapper { display: none; }
         .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; overflow-x: auto; }
-        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; font-size: 10px; text-transform: uppercase; white-space: nowrap; }
+        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
         .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
         .tab-content { display: none; padding: 15px; max-width: 600px; margin: auto; }
         .tab-content.active { display: block; }
         
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
+        /* LISTAS */
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
-        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
-        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 12px; }
-        .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
-        .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-act { background: #eee; border: none; padding: 8px; border-radius: 5px; cursor: pointer; }
+        .pedido-card { border-left: 5px solid var(--orange); }
+        .btn-acao { background: #eee; border: none; padding: 8px; border-radius: 5px; cursor: pointer; margin-left: 5px; }
+        
+        /* VARIAÇÕES E PROMO */
+        .var-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
+        .promo-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: #d00; }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
         <div class="login-card">
-            <div style="background: var(--green); color: white; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-weight: bold;">CENTER PET ADMIN</div>
-            <input type="email" id="login-email" placeholder="E-mail">
-            <input type="password" id="login-pass" placeholder="Senha">
-            <button id="btn-entrar">ENTRAR</button>
+            <h2 style="color:var(--green)">CENTER PET</h2>
+            <input type="email" id="email" placeholder="E-mail">
+            <input type="password" id="pass" placeholder="Senha">
+            <button id="btn-login">ENTRAR NO PAINEL</button>
         </div>
     </div>
 
     <div id="admin-wrapper">
         <div class="tabs">
-            <button class="tab-btn active" onclick="openTab('tab-pedidos')">📥 PEDIDOS</button>
-            <button class="tab-btn" onclick="openTab('tab-cadastro')">📦 PRODUTOS</button>
-            <button class="tab-btn" onclick="openTab('tab-categoria')">📂 CATEGORIAS</button>
-            <button class="tab-btn" onclick="handleLogout()" style="color:#ffcccc">SAIR</button>
+            <button class="tab-btn active" onclick="openTab('t-pedidos')">📥 PEDIDOS</button>
+            <button class="tab-btn" onclick="openTab('t-produtos')">📦 PRODUTOS</button>
+            <button class="tab-btn" onclick="openTab('t-categorias')">📂 CATEGORIAS</button>
+            <button class="tab-btn" onclick="deslogar()" style="color:#ffcccc">SAIR</button>
         </div>
 
-        <div id="tab-pedidos" class="tab-content active">
-            <h3>Pedidos Recentes</h3>
-            <div id="pedidos-list"></div>
+        <div id="t-pedidos" class="tab-content active">
+            <h3 style="color:var(--green)">Vendas Recentes</h3>
+            <div id="lista-pedidos"></div>
         </div>
 
-        <div id="tab-cadastro" class="tab-content">
+        <div id="t-produtos" class="tab-content">
             <div class="box">
                 <h3 style="margin-top:0; color:var(--green)">Gerenciar Produto</h3>
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="code" placeholder="Cód. Ref">
-                    <input type="number" id="stock" placeholder="Estoque">
+                    <input type="text" id="p-code" placeholder="Cód">
+                    <input type="number" id="p-stock" placeholder="Estoque">
                 </div>
-                <input type="text" id="name" placeholder="Nome do Produto">
-                <textarea id="desc" placeholder="Descrição" rows="3"></textarea>
-                <select id="cat-select"></select>
-                <input type="file" accept="image/*" id="file-input">
-                <div id="vars" style="margin-top:15px;"></div>
-                <button onclick="addVar()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; border-radius:10px;">+ Adicionar Peso e Preço</button>
-                <button class="btn-save" id="btn-main-save">SALVAR PRODUTO</button>
+                <input type="text" id="p-name" placeholder="Nome do Produto">
+                <textarea id="p-desc" placeholder="Descrição" rows="2"></textarea>
+                <select id="p-cat"></select>
+                <div id="p-vars-area"></div>
+                <button onclick="addVarInput()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; margin: 10px 0;">+ Peso e Preço</button>
+                <button id="btn-save-prod" style="width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold;">SALVAR PRODUTO</button>
             </div>
-            <div id="prod-list"></div>
+            <div id="lista-produtos"></div>
         </div>
 
-        <div id="tab-categoria" class="tab-content">
+        <div id="t-categorias" class="tab-content">
             <div class="box">
-                <h3>Categorias</h3>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="new-cat" placeholder="Nova Categoria">
-                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px; border-radius:8px;">ADD</button>
-                </div>
+                <input type="text" id="n-cat" placeholder="Nome da Categoria">
+                <button onclick="addCategoria()" style="width:100%; padding:10px; background:var(--green); color:white; border:none; border-radius:8px; margin-top:5px;">ADICIONAR</button>
             </div>
-            <div id="cat-list"></div>
+            <div id="lista-categorias"></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = {
+        const conf = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
             authDomain: "birdselect-d96b8.firebaseapp.com",
             projectId: "birdselect-d96b8",
@@ -102,163 +100,161 @@
             appId: "1:758168536506:web:26cebc129c97b6da5b8983"
         };
 
-        const app = initializeApp(firebaseConfig);
+        const app = initializeApp(conf);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        let photoBase64 = "", editId = null;
+        let editId = null;
 
-        // LOGIN CORRIGIDO
-        document.getElementById('btn-entrar').onclick = () => {
-            const email = document.getElementById('login-email').value;
-            const pass = document.getElementById('login-pass').value;
-            signInWithEmailAndPassword(auth, email, pass).catch(err => alert("Erro: " + err.message));
+        // --- LOGIN ---
+        document.getElementById('btn-login').onclick = () => {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('pass').value;
+            signInWithEmailAndPassword(auth, e, p).catch(err => alert("Erro: " + err.message));
         };
 
-        window.handleLogout = () => { if(confirm("Sair?")) signOut(auth).then(() => location.reload()); };
+        window.deslogar = () => signOut(auth).then(() => location.reload());
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('admin-wrapper').style.display = 'block';
-                initData();
-            } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('admin-wrapper').style.display = 'none';
+        onAuthStateChanged(auth, user => {
+            if(user) {
+                document.getElementById('login-screen').style.display='none';
+                document.getElementById('admin-wrapper').style.display='block';
+                carregarDados();
             }
         });
 
-        function initData() {
+        function carregarDados() {
+            // Pedidos
             onSnapshot(query(collection(db, "pedidos"), orderBy("timestamp", "desc")), snap => {
-                const list = document.getElementById('pedidos-list');
-                list.innerHTML = snap.docs.map(d => `
-                    <div class="box item">
-                        <div style="flex:1"><b>${d.data().cliente}</b><br><small>R$ ${d.data().total}</small></div>
-                        <button onclick="imprimirCupom('${d.id}')" class="btn-act">🖨️</button>
+                const div = document.getElementById('lista-pedidos');
+                div.innerHTML = snap.docs.map(d => `
+                    <div class="box item pedido-card">
+                        <div style="flex:1"><b>${d.data().cliente}</b><br><small>Total: R$ ${d.data().total}</small></div>
+                        <button class="btn-acao" onclick="imprimirPedido('${d.id}')" style="background:#333; color:white;">🖨️ IMPRIMIR</button>
                     </div>
                 `).join('');
-                window.pedidosData = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                window.dadosPedidos = snap.docs.map(d => ({id: d.id, ...d.data()}));
             });
 
-            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
-                const list = document.getElementById('cat-list');
-                const select = document.getElementById('cat-select');
-                list.innerHTML = snap.docs.map(d => `<div class="item" data-id="${d.id}"><span>☰ ${d.data().nome}</span><button onclick="deleteItem('categorias', '${d.id}')" style="color:red; background:none; border:none;">🗑️</button></div>`).join('');
-                select.innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
+            // Categorias
+            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
+                document.getElementById('lista-categorias').innerHTML = snap.docs.map(d => `
+                    <div class="item" data-id="${d.id}"><span>☰ ${d.data().nome}</span><button onclick="apagar('categorias','${d.id}')" class="btn-acao">🗑️</button></div>
+                `).join('');
+                document.getElementById('p-cat').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
 
+            // Produtos
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
-                const list = document.getElementById('prod-list');
-                window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                list.innerHTML = window.prods.map(p => `
+                window.dadosProdutos = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                document.getElementById('lista-produtos').innerHTML = window.dadosProdutos.map(p => `
                     <div class="item" data-id="${p.id}">
                         <div style="flex:1"><b>${p.name}</b><br><small>Estoque: ${p.stock}</small></div>
-                        <div style="display:flex; gap:5px;">
-                            <button onclick="editProd('${p.id}')" class="btn-act">✏️</button>
-                            <button onclick="deleteItem('produtos', '${p.id}')" class="btn-act">🗑️</button>
-                        </div>
+                        <div><button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button><button onclick="apagar('produtos','${p.id}')" class="btn-acao">🗑️</button></div>
                     </div>
                 `).join('');
             });
         }
 
-        Sortable.create(document.getElementById('cat-list'), { animation: 150, onEnd: () => saveOrder("categorias", 'cat-list') });
-        Sortable.create(document.getElementById('prod-list'), { animation: 150, onEnd: () => saveOrder("produtos", 'prod-list') });
-
-        async function saveOrder(colecao, idLista) {
-            const itens = document.getElementById(idLista).querySelectorAll('.item');
-            for(let i=0; i < itens.length; i++) {
-                await updateDoc(doc(db, colecao, itens[i].dataset.id), { order: i });
-            }
-        }
-
-        window.addVar = (w="", p="", isP=false, pp="") => {
-            const div = document.createElement('div');
-            div.className = 'var-row-box';
-            div.innerHTML = `
-                <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="Peso" value="${w}" class="v-w">
-                    <input type="number" placeholder="Preço" value="${p}" class="v-p">
-                </div>
-                <div class="var-promo-area">
-                    <label><input type="checkbox" class="v-promo" ${isP ? 'checked' : ''} onchange="toggleP(this)"> Oferta?</label>
-                    <input type="number" placeholder="Preço Promo" value="${pp}" class="v-promo-price" style="display: ${isP ? 'block' : 'none'}">
-                </div>
-                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px;">remover</button>
-            `;
-            document.getElementById('vars').appendChild(div);
-        };
-
-        window.toggleP = (el) => {
-            el.parentElement.parentElement.querySelector('.v-promo-price').style.display = el.checked ? 'block' : 'none';
-        };
-
-        document.getElementById('btn-main-save').onclick = async () => {
-            const name = document.getElementById('name').value;
-            if(!name) return alert("Nome obrigatório");
-            
-            const variations = Array.from(document.querySelectorAll('.var-row-box')).map(r => ({
-                weight: r.querySelector('.v-w').value,
-                price: parseFloat(r.querySelector('.v-p').value) || 0,
-                isPromo: r.querySelector('.v-promo').checked,
-                promoPrice: r.querySelector('.v-promo').checked ? parseFloat(r.querySelector('.v-promo-price').value) : null
-            }));
-
-            const data = {
-                code: document.getElementById('code').value,
-                name: name,
-                desc: document.getElementById('desc').value,
-                cat: document.getElementById('cat-select').value,
-                stock: parseInt(document.getElementById('stock').value) || 0,
-                variations: variations,
-                updatedAt: serverTimestamp()
-            };
-            if(photoBase64) data.img = photoBase64;
-
-            if(editId) await updateDoc(doc(db, "produtos", editId), data);
-            else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
-            alert("Salvo!"); location.reload();
-        };
-
-        window.editProd = (id) => {
-            const p = window.prods.find(i => i.id === id);
-            editId = id;
-            document.getElementById('code').value = p.code || "";
-            document.getElementById('name').value = p.name;
-            document.getElementById('stock').value = p.stock;
-            document.getElementById('desc').value = p.desc || "";
-            document.getElementById('cat-select').value = p.cat;
-            document.getElementById('vars').innerHTML = "";
-            if(p.variations) p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo, v.promoPrice || ""));
-            openTab('tab-cadastro');
-        };
-
-        window.imprimirCupom = (id) => {
-            const p = window.pedidosData.find(i => i.id === id);
-            const win = window.open('', '', 'width=600,height=600');
-            win.document.write(`<html><body style="font-family:monospace; width:58mm; padding:5px; font-size:12px;"><div style="text-align:center;"><h3>CENTER PET</h3><hr></div><p>Cliente: ${p.cliente}</p><p>Total: R$ ${p.total}</p><script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
+        // --- IMPRESSÃO ---
+        window.imprimirPedido = (id) => {
+            const p = window.dadosPedidos.find(x => x.id === id);
+            const win = window.open('', '', 'width=600,height=800');
+            win.document.write(`
+                <html><body style="font-family:monospace; width:58mm; padding:5px; font-size:12px;">
+                <center><b>CENTER PET</b><br>Ji-Paraná - RO<br>--------------------------</center>
+                <b>CLIENTE:</b> ${p.cliente}<br>
+                <b>ENDEREÇO:</b> ${p.endereco || 'Retirada'}<br>
+                --------------------------<br>
+                <table style="width:100%; font-size:11px;">
+                    ${p.itens ? p.itens.map(i => `<tr><td>${i.qtd}x ${i.nome}</td><td align="right">R$${i.subtotal}</td></tr>`).join('') : ''}
+                </table>
+                --------------------------<br>
+                <center><b>TOTAL: R$ ${p.total}</b></center>
+                <br><center>Obrigado!</center>
+                <script>window.onload=function(){window.print();window.close();}<\/script>
+                </body></html>
+            `);
             win.document.close();
         };
 
-        window.openTab = (t) => {
+        // --- ARRASTAR E SOLTAR ---
+        Sortable.create(document.getElementById('lista-categorias'), { animation: 150, onEnd: () => salvarOrdem("categorias", "lista-categorias") });
+        Sortable.create(document.getElementById('lista-produtos'), { animation: 150, onEnd: () => salvarOrdem("produtos", "lista-produtos") });
+
+        async function salvarOrdem(col, id) {
+            const itens = document.getElementById(id).querySelectorAll('.item');
+            for(let i=0; i<itens.length; i++) {
+                await updateDoc(doc(db, col, itens[i].dataset.id), { order: i });
+            }
+        }
+
+        // --- PRODUTOS E PROMOÇÕES ---
+        window.addVarInput = (w="", p="", isP=false, pp="") => {
+            const div = document.createElement('div');
+            div.className = 'var-box';
+            div.innerHTML = `
+                <div style="display:flex; gap:5px;">
+                    <input type="text" placeholder="Peso" class="v-w" value="${w}">
+                    <input type="number" placeholder="Preço" class="v-p" value="${p}">
+                </div>
+                <div class="promo-row">
+                    <label><input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.parentElement.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> Promoção?</label>
+                    <input type="number" placeholder="Preço Promo" class="v-pp" value="${pp}" style="display: ${isP ? 'block' : 'none'}; border-color: red;">
+                </div>
+                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px; margin-top:5px;">remover variação</button>
+            `;
+            document.getElementById('p-vars-area').appendChild(div);
+        };
+
+        document.getElementById('btn-save-prod').onclick = async () => {
+            const vars = Array.from(document.querySelectorAll('.var-box')).map(r => ({
+                weight: r.querySelector('.v-w').value,
+                price: parseFloat(r.querySelector('.v-p').value) || 0,
+                isPromo: r.querySelector('.v-check').checked,
+                promoPrice: r.querySelector('.v-check').checked ? parseFloat(r.querySelector('.v-pp').value) : null
+            }));
+
+            const dados = {
+                name: document.getElementById('p-name').value,
+                stock: parseInt(document.getElementById('p-stock').value) || 0,
+                code: document.getElementById('p-code').value,
+                desc: document.getElementById('p-desc').value,
+                cat: document.getElementById('p-cat').value,
+                variations: vars,
+                updatedAt: serverTimestamp()
+            };
+
+            if(editId) await updateDoc(doc(db, "produtos", editId), dados);
+            else { dados.order = 0; await addDoc(collection(db, "produtos"), dados); }
+            alert("Salvo!"); location.reload();
+        };
+
+        window.editarProd = (id) => {
+            const p = window.dadosProdutos.find(x => x.id === id);
+            editId = id;
+            document.getElementById('p-name').value = p.name;
+            document.getElementById('p-stock').value = p.stock;
+            document.getElementById('p-cat').value = p.cat;
+            document.getElementById('p-vars-area').innerHTML = "";
+            if(p.variations) p.variations.forEach(v => addVarInput(v.weight, v.price, v.isPromo, v.promoPrice));
+            openTab('t-produtos');
+        };
+
+        window.openTab = (id) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(t).classList.add('active');
+            document.getElementById(id).classList.add('active');
             event.currentTarget.classList.add('active');
         };
 
-        window.addCategory = async () => {
-            const n = document.getElementById('new-cat').value;
+        window.addCategoria = async () => {
+            const n = document.getElementById('n-cat').value;
             if(n) await addDoc(collection(db, "categorias"), { nome: n, order: 0 });
-            document.getElementById('new-cat').value = "";
+            document.getElementById('n-cat').value = "";
         };
 
-        window.deleteItem = async (c, id) => { if(confirm("Excluir?")) await deleteDoc(doc(db, c, id)); };
+        window.apagar = async (c, id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, c, id)); };
 
-        document.getElementById('file-input').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = (event) => photoBase64 = event.target.result;
-            reader.readAsDataURL(e.target.files[0]);
-        };
     </script>
 </body>
 </html>
