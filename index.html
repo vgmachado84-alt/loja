@@ -61,9 +61,7 @@
             document.getElementById('grid').innerHTML = filtered.map(p => {
                 const displayVar = p.variations.find(v => v.isPromo) || p.variations[0];
                 const hasPromo = p.variations.some(v => v.isPromo);
-                const isPromo = displayVar.isPromo;
-                const priceVal = isPromo ? displayVar.promoPrice : displayVar.price;
-
+                
                 return `
                 <div class="card" onclick="openProduct('${p.id}')">
                     ${hasPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
@@ -72,8 +70,8 @@
                         <h4>${p.name}</h4>
                         <div class="price-container">
                             <span class="price-label">${p.variations.length > 1 ? 'A partir de' : ''}</span>
-                            ${isPromo ? `<span class="old-price">R$ ${displayVar.price.toFixed(2)}</span>` : ''}
-                            <span class="price ${isPromo ? 'promo' : ''}">R$ ${Number(priceVal).toFixed(2)}</span>
+                            ${displayVar.isPromo ? `<span class="old-price">R$ ${Number(displayVar.price).toFixed(2)}</span>` : ''}
+                            <span class="price ${displayVar.isPromo ? 'promo' : ''}">R$ ${Number(displayVar.isPromo ? displayVar.promoPrice : displayVar.price).toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
@@ -104,16 +102,6 @@
             document.getElementById('p-modal').classList.add('active');
         };
 
-        window.shareProduct = () => {
-            const text = `Confira este produto na Center Pet: ${selectedProduct.name}`;
-            const url = window.location.href;
-            if (navigator.share) {
-                navigator.share({ title: 'Center Pet', text: text, url: url });
-            } else {
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + url)}`);
-            }
-        };
-
         window.changeQty = (val) => {
             qty = Math.max(1, qty + val);
             updateModalUI();
@@ -130,7 +118,10 @@
                 const valorFinal = v.isPromo ? v.promoPrice : v.price;
                 return `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">
                     <span>${v.weight}</span>
-                    <small>R$ ${Number(valorFinal).toFixed(2)}</small>
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        ${v.isPromo ? `<small style="text-decoration:line-through; color:#999; font-size:9px;">R$ ${Number(v.price).toFixed(2)}</small>` : ''}
+                        <small style="font-weight:bold; ${v.isPromo ? 'color:#e74c3c' : ''}">R$ ${Number(valorFinal).toFixed(2)}</small>
+                    </div>
                 </button>`;
             }).join('');
         }
@@ -138,7 +129,15 @@
         window.updateModalUI = () => {
             const valorUnitario = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
             document.getElementById('m-qty').innerText = qty;
-            document.getElementById('m-price').innerText = `R$ ${(valorUnitario * qty).toFixed(2)}`;
+            
+            // LÓGICA DO PREÇO NO RODAPÉ DO MODAL
+            const totalItem = (valorUnitario * qty).toFixed(2);
+            const totalOriginal = (selectedVar.price * qty).toFixed(2);
+
+            document.getElementById('m-price').innerHTML = `
+                ${selectedVar.isPromo ? `<span style="text-decoration:line-through; color:#999; font-size:14px; display:block; text-align:right;">R$ ${totalOriginal}</span>` : ''}
+                <span>R$ ${totalItem}</span>
+            `;
             
             document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
                 <div class="cart-item">
@@ -248,7 +247,7 @@
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
         .card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; position: relative; display: flex; flex-direction: column; min-height: 250px; }
-        .card-img { height: 150px; width: 100%; background: white; } /* Fundo branco no grid */
+        .card-img { height: 150px; width: 100%; background: white; }
         .card img { width: 100%; height: 100%; object-fit: contain; }
         .card-body { padding: 8px; flex-grow: 1; display: flex; flex-direction: column; }
         .card h4 { margin: 0 0 5px 0; font-size: 13px; height: 32px; overflow: hidden; color: #333; line-height: 1.2; }
@@ -265,7 +264,7 @@
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
         .modal-inner { padding: 20px; }
-        #m-img { width:100%; height:250px; object-fit:contain; background: white; border-radius:15px; } /* Fundo branco na imagem do modal */
+        #m-img { width:100%; height:250px; object-fit:contain; background: white; border-radius:15px; }
 
         .var-btn { flex: 1; border: 2px solid #ddd; border-radius: 10px; padding: 10px; background: white; display: flex; flex-direction: column; align-items: center; margin: 4px; min-width: 80px; }
         .var-btn.active { border-color: var(--orange); background: #fff5ee; }
@@ -292,16 +291,10 @@
         <div class="modal-inner">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px;">✕</button>
-                <button onclick="shareProduct()" style="border:none; background:#f5f5f5; border-radius:50%; width:40px; height:40px; font-size:18px; cursor:pointer;">📤</button>
             </div>
-
-            <div style="background: white; border-radius: 15px; overflow: hidden;"> <img id="m-img" src="">
-            </div>
-            
+            <img id="m-img" src="">
             <h2 id="m-title" style="margin:15px 0 5px; font-size:20px;"></h2>
-            
             <div id="m-info-row" style="display:flex; justify-content:space-between; font-size:12px; color:#888; margin-bottom:10px;"></div>
-            
             <p id="m-desc" style="color:#666; font-size:14px; margin-bottom:15px;"></p>
             
             <div id="m-vars" style="display:flex; flex-wrap:wrap; margin: 15px 0;"></div>
@@ -312,16 +305,14 @@
                     <span id="m-qty" style="font-weight:bold; font-size:18px;">1</span>
                     <button class="qty-btn" onclick="changeQty(1)">+</button>
                 </div>
-                <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
+                <div id="m-price" style="font-weight:bold; color:var(--orange); font-size:22px; text-align:right;"></div>
             </div>
 
             <button id="btn-add-outro" onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px; cursor:pointer;">+ ADICIONAR OUTRO PESO</button>
-            
             <div id="m-temp-area">
                 <div id="m-temp-list" style="margin-top:15px;"></div>
                 <div style="text-align:right; font-weight:bold; margin-top:10px;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
             </div>
-            
             <button class="btn-buy" onclick="confirmToMain()">CONCLUIR E IR PRO CARRINHO</button>
         </div>
     </div>
@@ -336,7 +327,7 @@
             </div>
             <input type="text" id="u-nome" class="search-input" style="margin-top:20px;" placeholder="Seu Nome">
             <input type="text" id="u-cidade" class="search-input" style="margin-top:10px;" placeholder="Cidade/Bairro">
-            <textarea id="u-obs" class="search-input" style="margin-top:10px; height:80px;" placeholder="Observações (ex: Troco para R$ 50, referência de endereço...)"></textarea>
+            <textarea id="u-obs" class="search-input" style="margin-top:10px; height:80px;" placeholder="Observações..."></textarea>
             <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:16px; margin-top:20px; cursor:pointer;">PEDIR NO WHATSAPP</button>
         </div>
     </div>
