@@ -2,14 +2,12 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ff7800">
-    <title>Center Pet</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Center Pet - Gestão Completa</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
@@ -22,276 +20,236 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        let mainCart = JSON.parse(localStorage.getItem('centerpet_cart')) || [];
-        let tempCart = [], selectedProduct = null, selectedVar = null, qty = 1, currentCat = "Todos", searchTerm = "";
+        let photoBase64 = "", editId = null;
 
-        onSnapshot(doc(db, "config", "layout"), d => { 
-            if(d.exists() && d.data().logo) document.getElementById('logo').src = d.data().logo;
+        window.openTab = (t) => {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            if(event) event.currentTarget.classList.add('active');
+        };
+
+        const catList = document.getElementById('cat-list');
+        Sortable.create(catList, { animation: 150, onEnd: () => saveOrder("categorias", catList) });
+
+        onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
+            catList.innerHTML = snap.docs.map(d => `
+                <div class="item" data-id="${d.id}">
+                    <span>☰ ${d.data().nome}</span>
+                    <button onclick="deleteItem('categorias', '${d.id}')" style="color:red; background:none; border:none;">🗑️</button>
+                </div>
+            `).join('');
+            document.getElementById('cat-select').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
         });
 
-        onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
-            const cats = snap.docs.map(d => d.data().nome);
-            renderCatBar(cats);
-        });
+        window.addCategory = async () => {
+            const nome = document.getElementById('new-cat').value;
+            if(nome) await addDoc(collection(db, "categorias"), { nome, order: 0 });
+            document.getElementById('new-cat').value = "";
+        };
+
+        const prodList = document.getElementById('prod-list');
+        Sortable.create(prodList, { animation: 150, onEnd: () => saveOrder("produtos", prodList) });
+
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                };
+            });
+        }
+
+        window.handleFile = async (e) => {
+            const file = e.target.files[0];
+            if(file) { photoBase64 = await compressImage(file); alert("Foto carregada!"); }
+        };
+
+        window.addVar = (w="", p="", isPromo=false, promoPrice="") => {
+            const div = document.createElement('div');
+            div.className = 'var-row-box';
+            div.innerHTML = `
+                <div class="var-inputs">
+                    <input type="text" placeholder="Peso" value="${w}" class="v-w">
+                    <input type="number" placeholder="Preço" value="${p}" class="v-p">
+                </div>
+                <div class="var-promo-area">
+                    <label><input type="checkbox" class="v-promo" ${isPromo ? 'checked' : ''} onchange="togglePromoField(this)"> Em Oferta?</label>
+                    <input type="number" placeholder="Preço Promo" value="${promoPrice}" class="v-promo-price" style="display: ${isPromo ? 'block' : 'none'}">
+                </div>
+                <button class="btn-del-var" onclick="this.parentElement.remove()">remover</button>`;
+            document.getElementById('vars').appendChild(div);
+        };
+
+        window.togglePromoField = (el) => {
+            const priceInput = el.parentElement.parentElement.querySelector('.v-promo-price');
+            priceInput.style.display = el.checked ? 'block' : 'none';
+        };
+
+        window.saveProduct = async () => {
+            const varRows = Array.from(document.querySelectorAll('.var-row-box'));
+            if(varRows.length === 0) return alert("Adicione pelo menos um peso!");
+
+            const variations = varRows.map(r => ({
+                weight: r.querySelector('.v-w').value,
+                price: parseFloat(r.querySelector('.v-p').value) || 0,
+                isPromo: r.querySelector('.v-promo').checked,
+                promoPrice: r.querySelector('.v-promo').checked ? parseFloat(r.querySelector('.v-promo-price').value) : null
+            }));
+
+            const mainVar = variations[0];
+
+            const data = {
+                code: document.getElementById('code').value,
+                name: document.getElementById('name').value,
+                desc: document.getElementById('desc').value,
+                cat: document.getElementById('cat-select').value,
+                stock: document.getElementById('stock').value,
+                variations: variations,
+                price: mainVar.price,
+                isPromo: variations.some(v => v.isPromo), // Se QUALQUER variação for promo, marca como promo
+                promoPrice: mainVar.promoPrice,
+                updatedAt: serverTimestamp()
+            };
+
+            if(photoBase64) data.img = photoBase64;
+            
+            try {
+                if(editId) await updateDoc(doc(db, "produtos", editId), data);
+                else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
+                alert("Salvo!");
+                location.reload();
+            } catch (e) { alert("Erro: " + e.message); }
+        };
 
         onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
-            window.prods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderGrid();
+            window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            prodList.innerHTML = window.prods.map(p => {
+                // Lógica de detecção de promoção melhorada
+                const temPromo = p.isPromo === true || String(p.isPromo) === 'true' || (p.variations && p.variations.some(v => v.isPromo));
+                
+                return `
+                <div class="item" data-id="${p.id}">
+                    <div style="flex:1">
+                        <small style="color:#2d5a27; font-weight:bold;">[CÓD: ${p.code || '---'}]</small> | 
+                        <small style="color:#007bff; font-weight:bold;">ESTOQUE: ${p.stock || '0'}</small>
+                        ${temPromo ? '<b style="color:red; font-size:10px; margin-left:10px;">🔥 PROMO</b>' : ''}<br>
+                        <b style="font-size:16px">${p.name}</b>
+                    </div>
+                    <div>
+                        <button onclick="editProd('${p.id}')">✏️</button>
+                        <button onclick="deleteItem('produtos', '${p.id}')">🗑️</button>
+                    </div>
+                </div>`;
+            }).join('');
         });
 
-        function renderCatBar(cats) {
-            document.getElementById('cat-bar').innerHTML = `<button class="cat-chip ${currentCat === 'Todos' ? 'active' : ''}" onclick="filterCat('Todos')">Todos</button>` + 
-                `<button class="cat-chip ${currentCat === 'Promoções' ? 'active' : ''}" onclick="filterCat('Promoções')">🔥 Promoções</button>` +
-                cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
-        }
-
-        window.filterCat = (c) => { currentCat = c; renderGrid(); };
-        window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
-
-        function renderGrid() {
-            let filtered = window.prods || [];
-            if(currentCat === "Promoções") {
-                filtered = filtered.filter(p => p.variations && p.variations.some(v => v.isPromo));
-            } else if(currentCat !== "Todos") {
-                filtered = filtered.filter(p => p.cat === currentCat);
+        window.editProd = (id) => {
+            const p = window.prods.find(i => i.id === id);
+            editId = id;
+            document.getElementById('code').value = p.code || "";
+            document.getElementById('name').value = p.name;
+            document.getElementById('desc').value = p.desc || "";
+            document.getElementById('stock').value = p.stock || "";
+            document.getElementById('cat-select').value = p.cat;
+            document.getElementById('vars').innerHTML = "";
+            photoBase64 = p.img || "";
+            if(p.variations) {
+                p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo, v.promoPrice || ""));
             }
-            if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm));
-            
-            document.getElementById('grid').innerHTML = filtered.map(p => {
-                const firstVar = p.variations[0];
-                const hasPromo = p.variations.some(v => v.isPromo);
-                // Preço de exibição no card (primeira variação ou a que estiver em promo)
-                const displayVar = p.variations.find(v => v.isPromo) || firstVar;
-                const priceHTML = displayVar.isPromo ? 
-                    `<span class="old-price">R$ ${Number(displayVar.price).toFixed(2)}</span>
-                     <span class="price promo">R$ ${Number(displayVar.promoPrice).toFixed(2)}</span>` :
-                    `<span class="price">R$ ${Number(displayVar.price).toFixed(2)}</span>`;
-
-                return `
-                <div class="card" onclick="openProduct('${p.id}')">
-                    ${hasPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
-                    <div class="card-img"><img src="${p.img || ''}"></div>
-                    <div class="card-body">
-                        <h4>${p.name}</h4>
-                        <div class="price-container">
-                            <span class="price-label">${p.variations.length > 1 ? 'A partir de' : ''}</span>
-                            ${priceHTML}
-                        </div>
-                    </div>
-                    <button class="add-btn">+</button>
-                </div>`;
-            }).join('');
-        }
-
-        window.openProduct = (id) => {
-            selectedProduct = window.prods.find(p => p.id === id);
-            // Inicia com a primeira variação
-            selectedVar = selectedProduct.variations[0];
-            tempCart = []; qty = 1;
-            
-            document.getElementById('m-img').src = selectedProduct.img || '';
-            document.getElementById('m-title').innerText = selectedProduct.name;
-            document.getElementById('m-desc').innerText = selectedProduct.desc || '';
-            document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
-            document.getElementById('m-stock').innerText = "Estoque: " + (selectedProduct.stock || 0);
-            
-            renderVars(); 
-            updateModalUI();
-            document.getElementById('p-modal').classList.add('active');
+            openTab('tab-cadastro');
         };
 
-        window.selectVar = (idx) => {
-            selectedVar = selectedProduct.variations[idx];
-            renderVars(); 
-            updateModalUI();
+        window.handleLogo = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                await setDoc(doc(db, "config", "layout"), { logo: event.target.result }, { merge: true });
+                alert("Logo atualizada!");
+            };
+            reader.readAsDataURL(file);
         };
 
-        function renderVars() {
-            document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => {
-                const valorFinal = v.isPromo ? v.promoPrice : v.price;
-                return `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">
-                    <span class="v-w">${v.weight}</span>
-                    <span class="v-p">R$ ${Number(valorFinal).toFixed(2)}</span>
-                    ${v.isPromo ? '<small style="color:red; font-size:9px">OFERTA</small>' : ''}
-                </button>`;
-            }).join('');
-        }
-
-        window.updateModalUI = () => {
-            const valorUnitario = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
-            document.getElementById('m-qty').innerText = qty;
-            document.getElementById('m-price').innerText = `R$ ${(valorUnitario * qty).toFixed(2)}`;
-            
-            document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
-                <div class="c-item-row">
-                    <span><b>${i.weight}</b></span>
-                    <div class="qty-control mini">
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
-                        <span>${i.qty}</span>
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
-                    </div>
-                    <span>R$ ${(i.finalPrice * i.qty).toFixed(2)}</span>
-                </div>`).join('');
-            document.getElementById('m-subtotal').innerText = tempCart.reduce((a,b) => a + (b.finalPrice * b.qty), 0).toFixed(2);
-        };
-
-        window.addTemp = () => { 
-            const finalP = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
-            tempCart.push({ ...selectedVar, finalPrice: finalP, qty, name: selectedProduct.name }); 
-            qty = 1; updateModalUI(); 
-        };
-        
-        window.confirmToMain = () => {
-            const finalP = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
-            if(tempCart.length > 0) {
-                tempCart.forEach(item => {
-                    mainCart.push({ ...item, price: item.finalPrice });
-                });
-            } else {
-                mainCart.push({ ...selectedVar, price: finalP, qty, name: selectedProduct.name, code: selectedProduct.code });
+        async function saveOrder(col, listEl) {
+            const items = listEl.querySelectorAll('.item');
+            for(let i=0; i < items.length; i++) {
+                await updateDoc(doc(db, col, items[i].dataset.id), { order: i });
             }
-            saveCart();
-            document.getElementById('p-modal').classList.remove('active');
-        };
-
-        function saveCart() {
-            localStorage.setItem('centerpet_cart', JSON.stringify(mainCart));
-            updateBadge();
         }
 
-        function updateBadge() {
-            const b = document.getElementById('badge');
-            const total = mainCart.reduce((acc, i) => acc + i.qty, 0);
-            b.innerText = total;
-            b.style.display = total > 0 ? 'flex' : 'none';
-        }
-
-        window.showMainCart = () => {
-            let total = 0;
-            document.getElementById('cart-list').innerHTML = mainCart.map((i, idx) => {
-                total += i.price * i.qty;
-                return `<div class="cart-item">
-                    <div style="flex:1"><b>${i.name}</b><br><small>${i.weight}</small></div>
-                    <div class="qty-control mini">
-                        <button class="qty-btn" onclick="updateMainQty(${idx}, -1)">-</button>
-                        <span>${i.qty}</span>
-                        <button class="qty-btn" onclick="updateMainQty(${idx}, 1)">+</button>
-                    </div>
-                    <div style="min-width: 80px; text-align:right">R$ ${(i.price * i.qty).toFixed(2)}</div>
-                </div>`;
-            }).join('');
-            document.getElementById('total').innerText = total.toFixed(2);
-            document.getElementById('c-modal').classList.add('active');
-        };
-
-        window.updateMainQty = (idx, v) => {
-            mainCart[idx].qty += v;
-            if(mainCart[idx].qty < 1) mainCart.splice(idx, 1);
-            saveCart(); showMainCart();
-        };
-
-        window.sendZap = () => {
-            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
-            if(!n || !c) return alert("Preencha Nome e Cidade!");
-            let t = `*CENTER PET - PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\n${i.qty}x R$ ${i.price.toFixed(2)} = R$ ${(i.qty * i.price).toFixed(2)}\n\n`; });
-            t += `*TOTAL: R$ ${document.getElementById('total').innerText}*`;
-            window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
-            mainCart = []; saveCart(); location.reload();
-        };
-
-        window.onload = updateBadge;
+        window.deleteItem = async (col, id) => { if(confirm("Excluir?")) await deleteDoc(doc(db, col, id)); };
     </script>
-
     <style>
-        :root { --orange: #ff7800; }
-        body { font-family: sans-serif; margin: 0; background: #f8faf9; padding-top: 170px; }
-        header { position: fixed; top: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; }
-        #logo { height: 40px; }
-        .search-container { padding: 0 15px 10px; }
-        .search-input { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid #ddd; background: #f5f5f5; outline: none; box-sizing: border-box; }
-        .cat-bar { display: flex; overflow-x: auto; padding: 5px 15px 10px; gap: 8px; scrollbar-width: none; }
-        .cat-chip { background: #eee; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 13px; white-space: nowrap; }
-        .cat-chip.active { background: var(--orange); color: white; }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
-        .card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; position: relative; }
-        .card-img { height: 150px; width: 100%; background: #f9f9f9; }
-        .card img { width: 100%; height: 100%; object-fit: contain; }
-        .card-body { padding: 8px; }
-        .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
-        
-        .price-container { display: flex; flex-direction: column; min-height: 40px; }
-        .old-price { text-decoration: line-through; color: #999; font-size: 10px; }
-        .price { color: var(--orange); font-weight: bold; font-size: 15px; }
-        .price.promo { color: #e74c3c; }
-        .promo-badge { position: absolute; top: 5px; left: 5px; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; }
-        
-        .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--orange); color: white; border: none; width: 28px; height: 28px; border-radius: 8px; font-size: 20px; }
-        
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
-        .modal.active { transform: translateY(0); }
-        .modal-inner { padding: 20px; }
-        #m-img { width:100%; height:250px; object-fit:contain; background: #f9f9f9; border-radius:15px; }
-
-        .var-btn { flex: 1; border: 2px solid #ddd; border-radius: 10px; padding: 10px; background: white; display: flex; flex-direction: column; align-items: center; margin: 4px; min-width: 80px; }
-        .var-btn.active { border-color: var(--orange); background: #fff5ee; }
-        .qty-control { display: flex; align-items: center; gap: 12px; background: #f1f1f1; padding: 8px; border-radius: 10px; }
-        .qty-btn { border: none; background: white; font-size: 18px; width: 30px; height: 30px; border-radius: 50%; color: var(--orange); font-weight: bold; }
-        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 16px; margin-top: 15px; }
-        .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .cart-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        :root { --green: #2d5a27; }
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
+        .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; }
+        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; }
+        .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
+        .tab-content { display: none; padding: 15px; max-width: 550px; margin: auto; }
+        .tab-content.active { display: block; }
+        .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
+        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
+        .var-inputs { display: flex; gap: 10px; }
+        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+        .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
+        .btn-del-var { background: none; border: none; color: #999; text-decoration: underline; font-size: 11px; cursor: pointer; }
+        .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <header>
-        <div class="top-bar">
-            <img id="logo" src="">
-            <button onclick="showMainCart()" style="border:none; background:none; font-size:25px; position:relative;">🛒<span id="badge" class="badge">0</span></button>
-        </div>
-        <div class="search-container"><input type="text" class="search-input" placeholder="Buscar..." oninput="handleSearch(event)"></div>
-        <div class="cat-bar" id="cat-bar"></div>
-    </header>
-
-    <div class="grid" id="grid"></div>
-
-    <div id="p-modal" class="modal">
-        <div class="modal-inner">
-            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px; margin-bottom:10px;">✕</button>
-            <img id="m-img" src="">
-            <h2 id="m-title" style="margin:10px 0;"></h2>
-            <p id="m-desc" style="color:#666; font-size:14px;"></p>
-            <p id="m-code" style="font-size:12px; color:#888;"></p>
-            <p id="m-stock" style="font-size:12px; font-weight:bold; color:var(--orange);"></p>
-            
-            <div id="m-vars" style="display:flex; flex-wrap:wrap; margin: 15px 0;"></div>
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:15px; border-radius:15px;">
-                <div class="qty-control"><button class="qty-btn" onclick="qty = Math.max(1, qty-1); updateModalUI()">-</button><span id="m-qty">1</span><button class="qty-btn" onclick="qty++; updateModalUI()">+</button></div>
-                <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
-            </div>
-
-            <button onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list" style="margin-top:15px;"></div>
-            <div style="text-align:right; font-weight:bold; margin-top:10px;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
-            
-            <button class="btn-buy" onclick="confirmToMain()">CONCLUIR E IR PRO CARRINHO</button>
-        </div>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('tab-cadastro')">PRODUTOS</button>
+        <button class="tab-btn" onclick="openTab('tab-categoria')">CATEGORIAS</button>
+        <button class="tab-btn" onclick="openTab('tab-config')">AJUSTES</button>
     </div>
 
-    <div id="c-modal" class="modal">
-        <div class="modal-inner">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; color:var(--orange); font-weight:bold; margin-bottom:20px;">⬅ VOLTAR</button>
-            <h2>Meu Carrinho</h2>
-            <div id="cart-list"></div>
-            <div style="display:flex; justify-content:space-between; margin-top:20px; font-size:20px; font-weight:bold;">
-                <span>TOTAL:</span><span style="color:var(--orange)">R$ <span id="total">0.00</span></span>
+    <div id="tab-cadastro" class="tab-content active">
+        <div class="box">
+            <h3>Gerenciar Produto</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="code" placeholder="Cód">
+                <input type="number" id="stock" placeholder="Estoque">
             </div>
-            <input type="text" id="u-nome" class="search-input" style="margin-top:20px;" placeholder="Seu Nome">
-            <input type="text" id="u-cidade" class="search-input" style="margin-top:10px;" placeholder="Cidade/Bairro">
-            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:16px; margin-top:20px;">PEDIR NO WHATSAPP</button>
+            <input type="text" id="name" placeholder="Nome">
+            <textarea id="desc" placeholder="Descrição"></textarea>
+            <select id="cat-select"></select>
+            <input type="file" accept="image/*" onchange="handleFile(event)">
+            <div id="vars" style="margin-top:15px;"></div>
+            <button onclick="addVar()" style="width:100%; padding:10px; border:1px dashed var(--green); color:var(--green); background:none; font-weight:bold;">+ Peso e Preço</button>
+            <button class="btn-save" onclick="saveProduct()">SALVAR PRODUTO</button>
+        </div>
+        <div id="prod-list"></div>
+    </div>
+
+    <div id="tab-categoria" class="tab-content">
+        <div class="box">
+            <h3>Categorias</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="new-cat" placeholder="Nova Categoria">
+                <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px; border-radius:8px;">ADD</button>
+            </div>
+        </div>
+        <div id="cat-list"></div>
+    </div>
+
+    <div id="tab-config" class="tab-content">
+        <div class="box">
+            <h3>Logo</h3>
+            <input type="file" accept="image/*" onchange="handleLogo(event)">
         </div>
     </div>
 </body>
