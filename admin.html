@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Center Pet - Gestão e Impressão</title>
+    <title>Admin Center Pet - Gestão Completa</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root { --green: #2d5a27; --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
         
-        /* TELA DE LOGIN */
+        /* LOGIN */
         #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; padding: 20px; }
         .login-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
         .login-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
         .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        /* INTERFACE ADMIN */
+        /* ADMIN */
         #admin-wrapper { display: none; }
         .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; overflow-x: auto; }
         .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; font-size: 10px; text-transform: uppercase; white-space: nowrap; }
@@ -26,8 +26,10 @@
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
         
-        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; }
+        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
         .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
+        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 12px; }
+        .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
         .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
@@ -36,10 +38,9 @@
     <div id="login-screen">
         <div class="login-card">
             <div style="background: var(--green); color: white; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-weight: bold;">CENTER PET ADMIN</div>
-            <input type="email" id="login-email" placeholder="E-mail" autocomplete="off">
-            <input type="password" id="login-pass" placeholder="Senha" autocomplete="new-password">
-            <button onclick="handleLogin()">ENTRAR NO PAINEL</button>
-            <p id="login-error" style="color: red; font-size: 12px; margin-top: 15px; font-weight: bold;"></p>
+            <input type="email" id="login-email" placeholder="E-mail">
+            <input type="password" id="login-pass" placeholder="Senha">
+            <button onclick="handleLogin()">ENTRAR</button>
         </div>
     </div>
 
@@ -52,7 +53,7 @@
         </div>
 
         <div id="tab-pedidos" class="tab-content active">
-            <h3 style="color:var(--green)">Pedidos Recentes</h3>
+            <h3>Pedidos Recentes</h3>
             <div id="pedidos-list"></div>
         </div>
 
@@ -68,7 +69,7 @@
                 <select id="cat-select"></select>
                 <input type="file" accept="image/*" onchange="handleFile(event)">
                 <div id="vars" style="margin-top:15px;"></div>
-                <button onclick="addVar()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; border-radius:10px;">+ Adicionar Peso/Preço</button>
+                <button onclick="addVar()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; border-radius:10px;">+ Adicionar Peso e Preço</button>
                 <button class="btn-save" id="btn-main-save" onclick="saveProduct()">SALVAR PRODUTO</button>
             </div>
             <div id="prod-list"></div>
@@ -76,10 +77,10 @@
 
         <div id="tab-categoria" class="tab-content">
             <div class="box">
-                <h3 style="margin-top:0; color:var(--green)">Categorias</h3>
+                <h3>Categorias</h3>
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="new-cat" placeholder="Ex: Rações, Acessórios...">
-                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold;">ADD</button>
+                    <input type="text" id="new-cat" placeholder="Nova Categoria">
+                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px; border-radius:8px;">ADD</button>
                 </div>
             </div>
             <div id="cat-list"></div>
@@ -89,7 +90,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        // Importando firestore corretamente
+        import { getFirestore as gf, collection as col, addDoc as ad, onSnapshot as os, deleteDoc as dd, doc as dc, updateDoc as ud, serverTimestamp as st, query as q, orderBy as ob } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
@@ -102,13 +105,13 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        const db = gf(app);
         let photoBase64 = "", editId = null;
 
         window.handleLogin = () => {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-            signInWithEmailAndPassword(auth, email, pass).catch(() => alert("Dados Incorretos"));
+            signInWithEmailAndPassword(auth, email, pass).catch(() => alert("Erro"));
         };
 
         window.handleLogout = () => { if(confirm("Sair?")) signOut(auth).then(() => location.reload()); };
@@ -123,7 +126,7 @@
 
         function initData() {
             // PEDIDOS
-            onSnapshot(query(collection(db, "pedidos"), orderBy("timestamp", "desc")), snap => {
+            os(q(col(db, "pedidos"), ob("timestamp", "desc")), snap => {
                 const list = document.getElementById('pedidos-list');
                 list.innerHTML = snap.docs.map(d => `
                     <div class="box item">
@@ -134,8 +137,8 @@
                 window.pedidosData = snap.docs.map(d => ({id: d.id, ...d.data()}));
             });
 
-            // CATEGORIAS
-            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
+            // CATEGORIAS COM SORTABLE
+            os(q(col(db, "categorias"), ob("order", "asc")), (snap) => {
                 const list = document.getElementById('cat-list');
                 const select = document.getElementById('cat-select');
                 list.innerHTML = snap.docs.map(d => `
@@ -145,53 +148,81 @@
                 select.innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
 
-            // PRODUTOS
-            onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
+            // PRODUTOS COM SORTABLE
+            os(q(col(db, "produtos"), ob("order", "asc")), snap => {
                 const list = document.getElementById('prod-list');
                 window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 list.innerHTML = window.prods.map(p => `
                     <div class="item" data-id="${p.id}">
                         <div style="flex:1"><b>${p.name}</b><br><small>Estoque: ${p.stock}</small></div>
-                        <button onclick="editProd('${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">✏️</button>
-                        <button onclick="deleteItem('produtos', '${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">🗑️</button>
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="editProd('${p.id}')">✏️</button>
+                            <button onclick="deleteItem('produtos', '${p.id}')">🗑️</button>
+                        </div>
                     </div>
                 `).join('');
             });
         }
 
-        window.openTab = (t) => {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(t).classList.add('active');
-            event.currentTarget.classList.add('active');
-        };
+        // Habilitar Arrastar e Soltar
+        Sortable.create(document.getElementById('cat-list'), { animation: 150, onEnd: () => saveOrder("categorias", 'cat-list') });
+        Sortable.create(document.getElementById('prod-list'), { animation: 150, onEnd: () => saveOrder("produtos", 'prod-list') });
 
-        window.addVar = (w="", p="") => {
+        async function saveOrder(colecao, idLista) {
+            const itens = document.getElementById(idLista).querySelectorAll('.item');
+            for(let i=0; i < itens.length; i++) {
+                await ud(dc(db, colecao, itens[i].dataset.id), { order: i });
+            }
+        }
+
+        window.addVar = (w="", p="", isP=false, pp="") => {
             const div = document.createElement('div');
             div.className = 'var-row-box';
-            div.innerHTML = `<input type="text" placeholder="Peso" value="${w}" class="v-w"> <input type="number" placeholder="Preço" value="${p}" class="v-p"> <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px;">remover</button>`;
+            div.innerHTML = `
+                <div style="display:flex; gap:5px;">
+                    <input type="text" placeholder="Peso" value="${w}" class="v-w">
+                    <input type="number" placeholder="Preço" value="${p}" class="v-p">
+                </div>
+                <div class="var-promo-area">
+                    <label><input type="checkbox" class="v-promo" ${isP ? 'checked' : ''} onchange="toggleP(this)"> Promoção?</label>
+                    <input type="number" placeholder="Preço Promo" value="${pp}" class="v-promo-price" style="display: ${isP ? 'block' : 'none'}">
+                </div>
+                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px; margin-top:5px;">remover</button>
+            `;
             document.getElementById('vars').appendChild(div);
         };
 
+        window.toggleP = (el) => {
+            const input = el.parentElement.parentElement.querySelector('.v-promo-price');
+            input.style.display = el.checked ? 'block' : 'none';
+        };
+
         window.saveProduct = async () => {
-            const btn = document.getElementById('btn-main-save');
+            const name = document.getElementById('name').value;
+            const stock = parseInt(document.getElementById('stock').value) || 0;
             const varRows = Array.from(document.querySelectorAll('.var-row-box'));
-            const variations = varRows.map(r => ({ weight: r.querySelector('.v-w').value, price: parseFloat(r.querySelector('.v-p').value) || 0 }));
             
+            const variations = varRows.map(r => ({
+                weight: r.querySelector('.v-w').value,
+                price: parseFloat(r.querySelector('.v-p').value) || 0,
+                isPromo: r.querySelector('.v-promo').checked,
+                promoPrice: r.querySelector('.v-promo').checked ? parseFloat(r.querySelector('.v-promo-price').value) : null
+            }));
+
             const data = {
                 code: document.getElementById('code').value,
-                name: document.getElementById('name').value,
+                name: name,
                 desc: document.getElementById('desc').value,
                 cat: document.getElementById('cat-select').value,
-                stock: parseInt(document.getElementById('stock').value) || 0,
+                stock: stock,
                 variations: variations,
-                updatedAt: serverTimestamp()
+                updatedAt: st()
             };
             if(photoBase64) data.img = photoBase64;
 
-            if(editId) await updateDoc(doc(db, "produtos", editId), data);
-            else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
-            alert("Sucesso!"); location.reload();
+            if(editId) await ud(dc(db, "produtos", editId), data);
+            else { data.order = 0; await ad(col(db, "produtos"), data); }
+            alert("Salvo!"); location.reload();
         };
 
         window.editProd = (id) => {
@@ -203,17 +234,31 @@
             document.getElementById('desc').value = p.desc || "";
             document.getElementById('cat-select').value = p.cat;
             document.getElementById('vars').innerHTML = "";
-            if(p.variations) p.variations.forEach(v => addVar(v.weight, v.price));
+            if(p.variations) p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo, v.promoPrice || ""));
             openTab('tab-cadastro');
+        };
+
+        window.imprimirCupom = (id) => {
+            const pedido = window.pedidosData.find(p => p.id === id);
+            const win = window.open('', '', 'width=600,height=600');
+            win.document.write(`<html><body style="font-family:monospace; width:58mm; padding:5px; font-size:12px;"><div style="text-align:center;"><h3 style="margin:0;">CENTER PET</h3><hr><b>PEDIDO</b></div><p><b>Cliente:</b> ${pedido.cliente}</p><p><b>Endereço:</b> ${pedido.endereco || '---'}</p><hr><table style="width:100%; font-size:11px;">${pedido.itens.map(i => `<tr><td>${i.qtd}x ${i.nome}</td><td align="right">R$ ${i.subtotal}</td></tr>`).join('')}</table><hr><div style="text-align:center; font-size:14px;"><b>TOTAL: R$ ${pedido.total}</b></div><hr><script>window.onload = function(){ window.print(); window.close(); }<\/script></body></html>`);
+            win.document.close();
+        };
+
+        window.openTab = (t) => {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            event.currentTarget.classList.add('active');
         };
 
         window.addCategory = async () => {
             const nome = document.getElementById('new-cat').value;
-            if(nome) await addDoc(collection(db, "categorias"), { nome, order: 0 });
+            if(nome) await ad(col(db, "categorias"), { nome, order: 0 });
             document.getElementById('new-cat').value = "";
         };
 
-        window.deleteItem = async (col, id) => { if(confirm("Excluir?")) await deleteDoc(doc(db, col, id)); };
+        window.deleteItem = async (c, id) => { if(confirm("Excluir?")) await dd(dc(db, c, id)); };
 
         window.handleFile = (e) => {
             const file = e.target.files[0];
