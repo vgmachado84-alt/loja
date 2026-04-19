@@ -12,35 +12,40 @@
         /* TELA DE LOGIN */
         #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; padding: 20px; }
         .login-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        .login-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .login-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
         /* INTERFACE ADMIN */
-        #admin-wrapper { display: none; } /* Escondido antes do login */
+        #admin-wrapper { display: none; }
         .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; }
-        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; font-size: 11px; text-transform: uppercase; }
         .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
         .tab-content { display: none; padding: 15px; max-width: 550px; margin: auto; }
         .tab-content.active { display: block; }
+        
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; }
-        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        
+        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
+        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; position: relative; }
         .var-inputs { display: flex; gap: 10px; }
-        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 12px; }
         .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
+        .btn-del-var { background: none; border: none; color: #999; text-decoration: underline; font-size: 11px; cursor: pointer; display: block; margin-top: 5px; }
+        
         .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-logout { color: #ffcccc; flex: 0.4; font-size: 10px; }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
         <div class="login-card">
-            <div style="background: var(--green); color: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-weight: bold;">CENTER PET ADMIN</div>
-            <input type="email" id="login-email" placeholder="E-mail">
-            <input type="password" id="login-pass" placeholder="Senha">
-            <button onclick="handleLogin()">ENTRAR</button>
-            <p id="login-error" style="color: red; font-size: 12px; margin-top: 10px;"></p>
+            <div style="background: var(--green); color: white; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; letter-spacing: 1px;">CENTER PET ADMIN</div>
+            <input type="email" id="login-email" placeholder="E-mail" autocomplete="off">
+            <input type="password" id="login-pass" placeholder="Senha" autocomplete="new-password">
+            <button onclick="handleLogin()">ENTRAR NO PAINEL</button>
+            <p id="login-error" style="color: red; font-size: 12px; margin-top: 15px; font-weight: bold;"></p>
         </div>
     </div>
 
@@ -49,33 +54,42 @@
             <button class="tab-btn active" onclick="openTab('tab-cadastro')">PRODUTOS</button>
             <button class="tab-btn" onclick="openTab('tab-categoria')">CATEGORIAS</button>
             <button class="tab-btn" onclick="openTab('tab-config')">AJUSTES</button>
-            <button class="tab-btn" onclick="handleLogout()" style="color: #ffcccc; flex: 0.5;">SAIR</button>
+            <button class="tab-btn btn-logout" onclick="handleLogout()">SAIR</button>
         </div>
 
         <div id="tab-cadastro" class="tab-content active">
             <div class="box">
-                <h3>Gerenciar Produto</h3>
+                <h3 style="margin-top:0; color:var(--green)">Gerenciar Produto</h3>
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="code" placeholder="Cód">
+                    <input type="text" id="code" placeholder="Cód. Ref">
                     <input type="number" id="stock" placeholder="Estoque">
                 </div>
-                <input type="text" id="name" placeholder="Nome">
-                <textarea id="desc" placeholder="Descrição"></textarea>
+                <input type="text" id="name" placeholder="Nome do Produto">
+                <textarea id="desc" placeholder="Descrição/Detalhes" rows="3"></textarea>
                 <select id="cat-select"></select>
+                
+                <label style="font-size:12px; color:#666;">Foto do Produto:</label>
                 <input type="file" accept="image/*" onchange="handleFile(event)">
+                
                 <div id="vars" style="margin-top:15px;"></div>
-                <button onclick="addVar()" style="width:100%; padding:10px; border:1px dashed var(--green); color:var(--green); background:none; font-weight:bold;">+ Peso e Preço</button>
+                <button onclick="addVar()" style="width:100%; padding:12px; border:2px dashed var(--green); color:var(--green); background:none; font-weight:bold; border-radius:10px;">+ Adicionar Peso e Preço</button>
+                
                 <button class="btn-save" id="btn-main-save" onclick="saveProduct()">SALVAR PRODUTO</button>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 20px 5px 10px;">
+                <b style="font-size:14px; color:#444;">PRODUTOS CADASTRADOS</b>
+                <span id="prod-count" style="background:#ccc; padding:2px 8px; border-radius:10px; font-size:12px;">0</span>
             </div>
             <div id="prod-list"></div>
         </div>
 
         <div id="tab-categoria" class="tab-content">
             <div class="box">
-                <h3>Categorias</h3>
+                <h3 style="margin-top:0; color:var(--green)">Categorias</h3>
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="new-cat" placeholder="Nova Categoria">
-                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px; border-radius:8px;">ADD</button>
+                    <input type="text" id="new-cat" placeholder="Ex: Rações, Gaiolas...">
+                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold;">ADD</button>
                 </div>
             </div>
             <div id="cat-list"></div>
@@ -83,7 +97,8 @@
 
         <div id="tab-config" class="tab-content">
             <div class="box">
-                <h3>Logo da Loja</h3>
+                <h3 style="margin-top:0; color:var(--green)">Configurações</h3>
+                <label style="font-size:12px; color:#666;">Trocar Logo da Loja:</label>
                 <input type="file" accept="image/*" onchange="handleLogo(event)">
             </div>
         </div>
@@ -108,68 +123,75 @@
         const db = getFirestore(app);
         let photoBase64 = "", editId = null;
 
-        // --- SISTEMA DE LOGIN ---
+        // --- LOGIN E SEGURANÇA ---
         window.handleLogin = () => {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-            signInWithEmailAndPassword(auth, email, pass).catch(err => {
-                document.getElementById('login-error').innerText = "E-mail ou senha incorretos!";
+            const err = document.getElementById('login-error');
+            err.innerText = "Verificando...";
+            signInWithEmailAndPassword(auth, email, pass).catch(() => {
+                err.innerText = "ACESSO NEGADO: E-MAIL OU SENHA INVÁLIDOS";
             });
         };
 
-        window.handleLogout = () => signOut(auth);
+        window.handleLogout = () => { if(confirm("Deseja sair do painel?")) signOut(auth); };
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('admin-wrapper').style.display = 'block';
-                initApp(); // Só carrega os dados se logar
+                initData();
             } else {
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('admin-wrapper').style.display = 'none';
             }
         });
 
-        // --- FUNÇÕES DA SUA INTERFACE ---
-        function initApp() {
-            // Carregar Categorias
+        // --- INICIALIZAÇÃO DE DADOS ---
+        function initData() {
+            // Categorias
             onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
-                catList.innerHTML = snap.docs.map(d => `
+                const list = document.getElementById('cat-list');
+                const select = document.getElementById('cat-select');
+                list.innerHTML = snap.docs.map(d => `
                     <div class="item" data-id="${d.id}">
                         <span>☰ ${d.data().nome}</span>
                         <button onclick="deleteItem('categorias', '${d.id}')" style="color:red; background:none; border:none;">🗑️</button>
                     </div>
                 `).join('');
-                document.getElementById('cat-select').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
+                select.innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
 
-            // Carregar Produtos
+            // Produtos
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
                 window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                prodList.innerHTML = window.prods.map(p => {
-                    const temPromo = p.isPromo || (p.variations && p.variations.some(v => v.isPromo));
+                const list = document.getElementById('prod-list');
+                document.getElementById('prod-count').innerText = snap.size;
+                list.innerHTML = window.prods.map(p => {
+                    const promo = p.isPromo || (p.variations && p.variations.some(v => v.isPromo));
                     return `
                     <div class="item" data-id="${p.id}">
                         <div style="flex:1">
                             <small style="color:var(--green); font-weight:bold;">[CÓD: ${p.code || '---'}]</small> | 
                             <small style="color:#007bff; font-weight:bold;">EST: ${p.stock || '0'}</small>
-                            ${temPromo ? '<b style="color:red; font-size:10px; margin-left:10px;">🔥 PROMO</b>' : ''}<br>
-                            <b style="font-size:16px">${p.name}</b>
+                            ${promo ? '<b style="color:red; font-size:10px; margin-left:8px;">🔥 OFERTA</b>' : ''}<br>
+                            <b style="font-size:16px; color:#333;">${p.name}</b>
                         </div>
-                        <div>
-                            <button onclick="editProd('${p.id}')">✏️</button>
-                            <button onclick="deleteItem('produtos', '${p.id}')">🗑️</button>
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="editProd('${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">✏️</button>
+                            <button onclick="deleteItem('produtos', '${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">🗑️</button>
                         </div>
                     </div>`;
                 }).join('');
             });
         }
 
+        // --- FUNÇÕES DE INTERFACE ---
         window.openTab = (t) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(t).classList.add('active');
-            if(event) event.currentTarget.classList.add('active');
+            event.currentTarget.classList.add('active');
         };
 
         const catList = document.getElementById('cat-list');
@@ -206,7 +228,7 @@
 
         window.handleFile = async (e) => {
             const file = e.target.files[0];
-            if(file) { photoBase64 = await compressImage(file); alert("Foto pronta!"); }
+            if(file) { photoBase64 = await compressImage(file); alert("Imagem processada!"); }
         };
 
         window.addVar = (w="", p="", isPromo=false, promoPrice="") => {
@@ -214,14 +236,14 @@
             div.className = 'var-row-box';
             div.innerHTML = `
                 <div class="var-inputs">
-                    <input type="text" placeholder="Peso" value="${w}" class="v-w">
+                    <input type="text" placeholder="Peso/Tam" value="${w}" class="v-w">
                     <input type="number" placeholder="Preço" value="${p}" class="v-p">
                 </div>
                 <div class="var-promo-area">
-                    <label><input type="checkbox" class="v-promo" ${isPromo ? 'checked' : ''} onchange="togglePromoField(this)"> Oferta?</label>
-                    <input type="number" placeholder="R$ Promo" value="${promoPrice}" class="v-promo-price" style="display: ${isPromo ? 'block' : 'none'}">
+                    <label><input type="checkbox" class="v-promo" ${isPromo ? 'checked' : ''} onchange="togglePromoField(this)"> Em Oferta?</label>
+                    <input type="number" placeholder="Preço Promo" value="${promoPrice}" class="v-promo-price" style="display: ${isPromo ? 'block' : 'none'}">
                 </div>
-                <button class="btn-del-var" onclick="this.parentElement.remove()">remover</button>`;
+                <button class="btn-del-var" onclick="this.parentElement.remove()">remover variação</button>`;
             document.getElementById('vars').appendChild(div);
         };
 
@@ -232,8 +254,14 @@
 
         window.saveProduct = async () => {
             const btn = document.getElementById('btn-main-save');
+            const name = document.getElementById('name').value;
             const varRows = Array.from(document.querySelectorAll('.var-row-box'));
-            if(varRows.length === 0) return alert("Adicione um peso/preço!");
+            
+            if(!name) return alert("Digite o nome do produto!");
+            if(varRows.length === 0) return alert("Adicione pelo menos um Peso e Preço!");
+
+            btn.innerText = "SALVANDO...";
+            btn.disabled = true;
 
             const variations = varRows.map(r => ({
                 weight: r.querySelector('.v-w').value,
@@ -242,12 +270,9 @@
                 promoPrice: r.querySelector('.v-promo').checked ? parseFloat(r.querySelector('.v-promo-price').value) : null
             }));
 
-            btn.innerText = "SALVANDO...";
-            btn.disabled = true;
-
             const data = {
                 code: document.getElementById('code').value,
-                name: document.getElementById('name').value,
+                name: name,
                 desc: document.getElementById('desc').value,
                 cat: document.getElementById('cat-select').value,
                 stock: document.getElementById('stock').value,
@@ -260,7 +285,7 @@
             try {
                 if(editId) await updateDoc(doc(db, "produtos", editId), data);
                 else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
-                alert("Sucesso!");
+                alert("Produto Salvo com Sucesso!");
                 location.reload();
             } catch (e) { alert("Erro ao salvar."); btn.disabled = false; btn.innerText = "SALVAR PRODUTO"; }
         };
@@ -297,7 +322,7 @@
             }
         }
 
-        window.deleteItem = async (col, id) => { if(confirm("Excluir item?")) await deleteDoc(doc(db, col, id)); };
+        window.deleteItem = async (col, id) => { if(confirm("Tem certeza que deseja excluir?")) await deleteDoc(doc(db, col, id)); };
     </script>
 </body>
 </html>
