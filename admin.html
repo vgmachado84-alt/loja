@@ -27,7 +27,7 @@
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
         
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
-        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; position: relative; }
+        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
         .var-inputs { display: flex; gap: 10px; }
         .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 12px; }
         .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
@@ -41,11 +41,11 @@
 
     <div id="login-screen">
         <div class="login-card">
-            <div style="background: var(--green); color: white; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; letter-spacing: 1px;">CENTER PET ADMIN</div>
+            <div style="background: var(--green); color: white; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-weight: bold;">CENTER PET ADMIN</div>
             <input type="email" id="login-email" placeholder="E-mail" autocomplete="off">
             <input type="password" id="login-pass" placeholder="Senha" autocomplete="new-password">
             <button onclick="handleLogin()">ENTRAR NO PAINEL</button>
-            <p id="login-error" style="color: red; font-size: 12px; margin-top: 15px; font-weight: bold;"></p>
+            <p id="login-error" style="color: red; font-size: 12px; margin-top: 15px; font-weight: bold; min-height: 15px;"></p>
         </div>
     </div>
 
@@ -128,16 +128,27 @@
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
             const err = document.getElementById('login-error');
-            err.innerText = "Verificando...";
+            
+            if(!email || !pass) return err.innerText = "PREENCHA TODOS OS CAMPOS";
+            
+            err.innerText = "VERIFICANDO...";
             signInWithEmailAndPassword(auth, email, pass).catch(() => {
-                err.innerText = "ACESSO NEGADO: E-MAIL OU SENHA INVÁLIDOS";
+                err.innerText = "ACESSO NEGADO: DADOS INCORRETOS";
             });
         };
 
-        window.handleLogout = () => { if(confirm("Deseja sair do painel?")) signOut(auth); };
+        window.handleLogout = () => { 
+            if(confirm("Deseja sair do painel?")) {
+                signOut(auth).then(() => {
+                    location.reload(); // Recarrega para limpar tudo
+                });
+            }
+        };
 
         onAuthStateChanged(auth, (user) => {
+            const err = document.getElementById('login-error');
             if (user) {
+                err.innerText = ""; // Limpa qualquer erro ao entrar
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('admin-wrapper').style.display = 'block';
                 initData();
@@ -149,7 +160,6 @@
 
         // --- INICIALIZAÇÃO DE DADOS ---
         function initData() {
-            // Categorias
             onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
                 const list = document.getElementById('cat-list');
                 const select = document.getElementById('cat-select');
@@ -162,7 +172,6 @@
                 select.innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
 
-            // Produtos
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
                 window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 const list = document.getElementById('prod-list');
@@ -178,8 +187,8 @@
                             <b style="font-size:16px; color:#333;">${p.name}</b>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button onclick="editProd('${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">✏️</button>
-                            <button onclick="deleteItem('produtos', '${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">🗑️</button>
+                            <button onclick="editProd('${p.id}')">✏️</button>
+                            <button onclick="deleteItem('produtos', '${p.id}')">🗑️</button>
                         </div>
                     </div>`;
                 }).join('');
@@ -285,7 +294,7 @@
             try {
                 if(editId) await updateDoc(doc(db, "produtos", editId), data);
                 else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
-                alert("Produto Salvo com Sucesso!");
+                alert("Salvo com sucesso!");
                 location.reload();
             } catch (e) { alert("Erro ao salvar."); btn.disabled = false; btn.innerText = "SALVAR PRODUTO"; }
         };
@@ -322,7 +331,7 @@
             }
         }
 
-        window.deleteItem = async (col, id) => { if(confirm("Tem certeza que deseja excluir?")) await deleteDoc(doc(db, col, id)); };
+        window.deleteItem = async (col, id) => { if(confirm("Deseja excluir?")) await deleteDoc(doc(db, col, id)); };
     </script>
 </body>
 </html>
