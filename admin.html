@@ -9,31 +9,34 @@
         :root { --green: #2d5a27; --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
         
-        /* LOGIN - Ajuste para PC */
         #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #eee; }
         .login-card { background: white; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
-        /* INTERFACE */
         #admin-wrapper { display: none; }
         .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; overflow-x: auto; }
         .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
         .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
-        .tab-content { display: none; padding: 15px; max-width: 600px; margin: auto; }
+        .tab-content { display: none; padding: 15px; max-width: 650px; margin: auto; }
         .tab-content.active { display: block; }
         
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
-        /* LISTAS */
+        /* LISTA DE PRODUTOS COM VISUALIZAÇÃO */
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
-        .btn-acao { background: #eee; border: none; padding: 8px; border-radius: 5px; cursor: pointer; margin-left: 5px; }
-        
-        /* VARIAÇÕES E PROMOÇÃO */
+        .prod-info { flex: 1; font-size: 14px; }
+        .prod-info b { color: var(--green); display: block; margin-bottom: 3px; }
+        .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
+        .tag-price { background: #e8f5e9; color: #2e7d32; }
+        .tag-promo { background: #ffebee; color: #c62828; }
+        .tag-stock { background: #f3f4f6; color: #4b5563; }
+
+        .btn-acao { background: #eee; border: none; padding: 10px; border-radius: 8px; cursor: pointer; margin-left: 5px; }
         .var-box { background: #f9f9f9; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
-        .promo-area { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #ccc; }
-        .input-promo { background: #fff0f0; border: 1px solid #ff7b7b !important; color: #d00; font-weight: bold; }
+        .btn-save { background: var(--green); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; flex: 2; }
+        .btn-cancel { background: #999; color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; flex: 1; }
     </style>
 </head>
 <body>
@@ -41,9 +44,9 @@
     <div id="login-screen">
         <div class="login-card">
             <h2 style="color:var(--green)">CENTER PET</h2>
-            <input type="email" id="email" placeholder="Seu e-mail" autocomplete="off">
-            <input type="password" id="pass" placeholder="Sua senha" autocomplete="new-password">
-            <button id="btn-login">ENTRAR NO PAINEL</button>
+            <input type="email" id="email" placeholder="E-mail" autocomplete="off">
+            <input type="password" id="pass" placeholder="Senha" autocomplete="new-password">
+            <button id="btn-login">ENTRAR</button>
         </div>
     </div>
 
@@ -62,28 +65,29 @@
 
         <div id="t-produtos" class="tab-content">
             <div class="box">
-                <h3 style="margin-top:0; color:var(--green)">Novo / Editar Produto</h3>
+                <h3 id="form-title" style="margin-top:0; color:var(--green)">Novo Produto</h3>
                 <div style="display:flex; gap:10px;">
                     <input type="text" id="p-code" placeholder="Cód">
                     <input type="number" id="p-stock" placeholder="Estoque">
                 </div>
                 <input type="text" id="p-name" placeholder="Nome do Produto">
-                <textarea id="p-desc" placeholder="Descrição rápida" rows="2"></textarea>
+                <textarea id="p-desc" placeholder="Descrição" rows="2"></textarea>
                 <select id="p-cat"></select>
-                
                 <div id="p-vars-area"></div>
-                
                 <button onclick="addVarInput()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; margin: 10px 0; cursor: pointer;">+ Adicionar Peso e Preço</button>
                 
-                <button id="btn-save-prod" style="width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold; cursor: pointer;">SALVAR TUDO</button>
+                <div style="display:flex; gap:10px;">
+                    <button id="btn-save-prod" class="btn-save">SALVAR</button>
+                    <button onclick="cancelarEdicao()" class="btn-cancel">CANCELAR</button>
+                </div>
             </div>
             <div id="lista-produtos"></div>
         </div>
 
         <div id="t-categorias" class="tab-content">
             <div class="box">
-                <input type="text" id="n-cat" placeholder="Ex: Rações Gatos">
-                <button onclick="addCategoria()" style="width:100%; padding:10px; background:var(--green); color:white; border:none; border-radius:8px; margin-top:5px;">ADICIONAR CATEGORIA</button>
+                <input type="text" id="n-cat" placeholder="Nova Categoria">
+                <button onclick="addCategoria()" style="width:100%; padding:10px; background:var(--green); color:white; border:none; border-radius:8px; margin-top:5px;">ADICIONAR</button>
             </div>
             <div id="lista-categorias"></div>
         </div>
@@ -108,20 +112,20 @@
         const db = getFirestore(app);
         let editId = null;
 
-        // --- LOGIN ---
         document.getElementById('btn-login').onclick = () => {
-            const e = document.getElementById('email').value;
-            const p = document.getElementById('pass').value;
-            signInWithEmailAndPassword(auth, e, p).catch(err => alert("Acesso negado: verifique e-mail e senha."));
+            signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('pass').value).catch(e => alert("Acesso negado."));
         };
 
-        window.deslogar = () => signOut(auth).then(() => location.reload());
+        window.deslogar = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
             if(user) {
                 document.getElementById('login-screen').style.display='none';
                 document.getElementById('admin-wrapper').style.display='block';
                 carregarDados();
+            } else {
+                document.getElementById('login-screen').style.display='flex';
+                document.getElementById('admin-wrapper').style.display='none';
             }
         });
 
@@ -130,53 +134,60 @@
                 document.getElementById('lista-pedidos').innerHTML = snap.docs.map(d => `
                     <div class="box item" style="border-left: 5px solid var(--orange)">
                         <div style="flex:1"><b>${d.data().cliente}</b><br><small>Total: R$ ${d.data().total}</small></div>
-                        <button class="btn-acao" onclick="imprimirPedido('${d.id}')" style="background:#333; color:white;">🖨️ IMPRIMIR</button>
+                        <button class="btn-acao" onclick="imprimirPedido('${d.id}')">🖨️ IMPRIMIR</button>
                     </div>
                 `).join('');
                 window.dadosPedidos = snap.docs.map(d => ({id: d.id, ...d.data()}));
             });
 
             onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
-                document.getElementById('lista-categorias').innerHTML = snap.docs.map(d => `
-                    <div class="item" data-id="${d.id}"><span>☰ ${d.data().nome}</span><button onclick="apagar('categorias','${d.id}')" class="btn-acao">🗑️</button></div>
-                `).join('');
+                document.getElementById('lista-categorias').innerHTML = snap.docs.map(d => `<div class="item" data-id="${d.id}"><span>☰ ${d.data().nome}</span><button onclick="apagar('categorias','${d.id}')" class="btn-acao">🗑️</button></div>`).join('');
                 document.getElementById('p-cat').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
 
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
                 window.dadosProdutos = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                document.getElementById('lista-produtos').innerHTML = window.dadosProdutos.map(p => `
+                document.getElementById('lista-produtos').innerHTML = window.dadosProdutos.map(p => {
+                    const firstVar = p.variations ? p.variations[0] : null;
+                    return `
                     <div class="item" data-id="${p.id}">
-                        <div style="flex:1"><b>${p.name}</b><br><small>Estoque: ${p.stock}</small></div>
-                        <div><button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button><button onclick="apagar('produtos','${p.id}')" class="btn-acao">🗑️</button></div>
-                    </div>
-                `).join('');
+                        <div class="prod-info">
+                            <b>${p.name}</b>
+                            <span class="tag tag-stock">REF: ${p.code || '--'}</span>
+                            <span class="tag tag-stock">ESTOQUE: ${p.stock || 0}</span>
+                            ${firstVar ? `<span class="tag tag-price">R$ ${firstVar.price}</span>` : ''}
+                            ${firstVar && firstVar.isPromo ? `<span class="tag tag-promo">PROMO: R$ ${firstVar.promoPrice}</span>` : ''}
+                        </div>
+                        <div style="display:flex;">
+                            <button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button>
+                            <button onclick="apagar('produtos','${p.id}')" class="btn-acao">🗑️</button>
+                        </div>
+                    </div>`;
+                }).join('');
             });
         }
 
-        // --- VARIAÇÕES COM CAMPO PROMOCIONAL ---
         window.addVarInput = (w="", p="", isP=false, pp="") => {
             const div = document.createElement('div');
             div.className = 'var-box';
             div.innerHTML = `
                 <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="Ex: 1kg ou Unidade" class="v-w" value="${w}">
-                    <input type="number" placeholder="Preço Normal" class="v-p" value="${p}">
+                    <input type="text" placeholder="Peso/Tam" class="v-w" value="${w}">
+                    <input type="number" placeholder="R$ Preço" class="v-p" value="${p}">
                 </div>
-                <div class="promo-area">
-                    <label style="font-size:12px; font-weight:bold; color:var(--green)">
-                        <input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.parentElement.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> 
-                        ATIVAR PREÇO PROMOCIONAL?
-                    </label>
-                    <input type="number" placeholder="Valor da Oferta" class="v-pp input-promo" value="${pp}" style="display: ${isP ? 'block' : 'none'}; margin-top:5px;">
+                <div style="margin-top:8px;">
+                    <label style="font-size:12px;"><input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.parentElement.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> Promoção?</label>
+                    <input type="number" placeholder="R$ Valor Promo" class="v-pp" value="${pp}" style="display: ${isP ? 'block' : 'none'}; border-color: red; margin-top:5px;">
                 </div>
-                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px; margin-top:8px; cursor:pointer;">[x] Remover esta variação</button>
+                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px; margin-top:5px; cursor:pointer;">[x] Remover</button>
             `;
             document.getElementById('p-vars-area').appendChild(div);
         };
 
-        // --- SALVAR PRODUTO ---
         document.getElementById('btn-save-prod').onclick = async () => {
+            const btn = document.getElementById('btn-save-prod');
+            btn.disabled = true; btn.innerText = "SALVANDO...";
+
             const vars = Array.from(document.querySelectorAll('.var-box')).map(r => ({
                 weight: r.querySelector('.v-w').value,
                 price: parseFloat(r.querySelector('.v-p').value) || 0,
@@ -194,18 +205,18 @@
                 updatedAt: serverTimestamp()
             };
 
-            if(!dados.name) return alert("O nome do produto é obrigatório!");
-
             if(editId) await updateDoc(doc(db, "produtos", editId), dados);
             else { dados.order = 0; await addDoc(collection(db, "produtos"), dados); }
             
-            alert("Produto salvo com sucesso!");
-            location.reload();
+            cancelarEdicao();
+            btn.disabled = false; btn.innerText = "SALVAR";
+            alert("Sucesso!");
         };
 
         window.editarProd = (id) => {
             const p = window.dadosProdutos.find(x => x.id === id);
             editId = id;
+            document.getElementById('form-title').innerText = "Editando Produto";
             document.getElementById('p-name').value = p.name;
             document.getElementById('p-stock').value = p.stock;
             document.getElementById('p-code').value = p.code || "";
@@ -213,42 +224,39 @@
             document.getElementById('p-cat').value = p.cat;
             document.getElementById('p-vars-area').innerHTML = "";
             if(p.variations) p.variations.forEach(v => addVarInput(v.weight, v.price, v.isPromo, v.promoPrice));
-            openTab('t-produtos');
-            window.scrollTo(0,0);
+            window.scrollTo({top: 0, behavior: 'smooth'});
         };
 
-        // --- IMPRESSÃO ---
+        window.cancelarEdicao = () => {
+            editId = null;
+            document.getElementById('form-title').innerText = "Novo Produto";
+            document.getElementById('p-name').value = "";
+            document.getElementById('p-stock').value = "";
+            document.getElementById('p-code').value = "";
+            document.getElementById('p-desc').value = "";
+            document.getElementById('p-vars-area').innerHTML = "";
+        };
+
         window.imprimirPedido = (id) => {
             const p = window.dadosPedidos.find(x => x.id === id);
             const win = window.open('', '', 'width=600,height=800');
-            win.document.write(`
-                <html><body style="font-family:monospace; width:58mm; padding:5px; font-size:12px;">
-                <center><b>CENTER PET</b><br>--------------------------</center>
-                <b>CLIENTE:</b> ${p.cliente}<br>
-                <b>FONE:</b> ${p.whatsapp || ''}<br>
-                <b>ENDEREÇO:</b> ${p.endereco || 'Retirada no Local'}<br>
-                --------------------------<br>
-                <table style="width:100%; font-size:11px;">
-                    ${p.itens ? p.itens.map(i => `<tr><td>${i.qtd}x ${i.nome}</td><td align="right">R$${i.subtotal}</td></tr>`).join('') : ''}
-                </table>
-                --------------------------<br>
+            win.document.write(`<html><body style="font-family:monospace; width:58mm; padding:5px; font-size:12px;">
+                <center><b>CENTER PET</b></center><hr>
+                <b>CLIENTE:</b> ${p.cliente}<br><b>FONE:</b> ${p.whatsapp || ''}<br><hr>
+                <table style="width:100%">${p.itens ? p.itens.map(i => `<tr><td>${i.qtd}x ${i.nome}</td><td align="right">R$${i.subtotal}</td></tr>`).join('') : ''}</table><hr>
                 <center><b>TOTAL: R$ ${p.total}</b></center>
-                <script>window.onload=function(){window.print();window.close();}<\/script>
-                </body></html>
-            `);
+                <script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
             win.document.close();
         };
 
-        // --- CATEGORIAS ---
         window.addCategoria = async () => {
             const n = document.getElementById('n-cat').value;
             if(n) await addDoc(collection(db, "categorias"), { nome: n, order: 0 });
             document.getElementById('n-cat').value = "";
         };
 
-        window.apagar = async (c, id) => { if(confirm("Deseja mesmo excluir este item?")) await deleteDoc(doc(db, c, id)); };
+        window.apagar = async (c, id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, c, id)); };
 
-        // --- AUXILIARES ---
         window.openTab = (id) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
