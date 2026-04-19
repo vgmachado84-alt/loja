@@ -8,37 +8,24 @@
     <style>
         :root { --green: #2d5a27; --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
-        
-        #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #eee; }
+        #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
         .login-card { background: white; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        
         #admin-wrapper { display: none; }
-        .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; overflow-x: auto; }
-        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
+        .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; }
+        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; font-size: 11px; cursor: pointer; }
         .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
         .tab-content { display: none; padding: 15px; max-width: 650px; margin: auto; }
         .tab-content.active { display: block; }
-        
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        
-        .upload-area { border: 2px dashed var(--green); padding: 15px; text-align: center; border-radius: 10px; margin-bottom: 10px; cursor: pointer; background: #f9fff9; }
-        .progress-bar { height: 8px; background: #eee; border-radius: 10px; margin-bottom: 10px; display: none; overflow: hidden; }
-        #progresso-fill { height: 100%; background: var(--orange); width: 0%; transition: 0.2s; }
-
-        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
-        .prod-info { flex: 1; font-size: 14px; display: flex; align-items: center; }
+        .upload-area { border: 2px dashed var(--green); padding: 15px; text-align: center; border-radius: 10px; cursor: pointer; background: #f9fff9; }
+        #progresso-fill { height: 8px; background: var(--orange); width: 0%; transition: 0.2s; border-radius: 10px; margin-top: 10px; }
+        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; }
         .img-lista { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; margin-right: 12px; background: #eee; }
-        .prod-text b { color: var(--green); display: block; }
-        
-        .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
-        .tag-price { background: #e8f5e9; color: #2e7d32; }
-
         .btn-acao { background: #eee; border: none; padding: 10px; border-radius: 8px; cursor: pointer; margin-left: 5px; }
         .var-box { background: #f9f9f9; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
-        .btn-save { background: var(--green); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; flex: 2; }
     </style>
 </head>
 <body>
@@ -54,41 +41,30 @@
 
     <div id="admin-wrapper">
         <div class="tabs">
-            <button class="tab-btn active" onclick="openTab('t-pedidos')">📥 PEDIDOS</button>
-            <button class="tab-btn" onclick="openTab('t-produtos')">📦 PRODUTOS</button>
-            <button class="tab-btn" onclick="openTab('t-categorias')">📂 CATEGORIAS</button>
+            <button class="tab-btn active" onclick="openTab('t-pedidos')">PEDIDOS</button>
+            <button class="tab-btn" onclick="openTab('t-produtos')">PRODUTOS</button>
+            <button class="tab-btn" onclick="openTab('t-categorias')">CATEGORIAS</button>
             <button class="tab-btn" onclick="deslogar()" style="color:#ffcccc">SAIR</button>
         </div>
 
-        <div id="t-pedidos" class="tab-content active">
-            <div id="lista-pedidos"></div>
-        </div>
+        <div id="t-pedidos" class="tab-content active"><div id="lista-pedidos"></div></div>
 
         <div id="t-produtos" class="tab-content">
             <div class="box">
-                <h3 id="form-title" style="margin-top:0; color:var(--green)">Gerenciar Produto</h3>
-                
                 <div class="upload-area" onclick="document.getElementById('file-input').click()">
-                    <span id="upload-status">📷 Foto da Galeria</span>
+                    <span id="upload-status">📷 Carregar Foto da Galeria</span>
                     <input type="file" id="file-input" accept="image/*" style="display:none">
+                    <div id="progresso-fill"></div>
                 </div>
-                <div class="progress-bar" id="p-bar"><div id="progresso-fill"></div></div>
                 <input type="hidden" id="p-img">
-
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="p-code" placeholder="Cód">
-                    <input type="number" id="p-stock" placeholder="Estoque">
-                </div>
                 <input type="text" id="p-name" placeholder="Nome do Produto">
+                <input type="text" id="p-code" placeholder="Código">
+                <input type="number" id="p-stock" placeholder="Estoque">
                 <textarea id="p-desc" placeholder="Descrição"></textarea>
                 <select id="p-cat"></select>
                 <div id="p-vars-area"></div>
-                <button onclick="addVarInput()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; margin-bottom: 15px; cursor: pointer;">+ Add Peso e Preço</button>
-                
-                <div style="display:flex; gap:10px;">
-                    <button id="btn-save-prod" class="btn-save">SALVAR PRODUTO</button>
-                    <button onclick="cancelarEdicao()" style="background:#999; border:none; color:white; padding:15px; border-radius:10px; cursor:pointer;">CANCELAR</button>
-                </div>
+                <button onclick="addVarInput()" style="width:100%; padding:10px; border:1px solid var(--green); background:none; color:var(--green); margin-bottom:10px;">+ Peso e Preço</button>
+                <button id="btn-save-prod" style="width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold;">SALVAR PRODUTO</button>
             </div>
             <div id="lista-produtos"></div>
         </div>
@@ -96,7 +72,7 @@
         <div id="t-categorias" class="tab-content">
             <div class="box">
                 <input type="text" id="n-cat" placeholder="Nova Categoria">
-                <button onclick="addCategoria()" style="width:100%; padding:10px; background:var(--green); color:white; border:none; border-radius:8px;">ADICIONAR</button>
+                <button onclick="addCategoria()" style="width:100%; padding:10px; background:var(--green); color:white; border:none;">ADICIONAR</button>
             </div>
             <div id="lista-categorias"></div>
         </div>
@@ -112,7 +88,7 @@
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
             authDomain: "birdselect-d96b8.firebaseapp.com",
             projectId: "birdselect-d96b8",
-            storageBucket: "birdselect-d96b8.appspot.com",
+            storageBucket: "birdselect-d96b8.appspot.com", // Verifique se no seu console termina com .appspot.com
             messagingSenderId: "758168536506",
             appId: "1:758168536506:web:26cebc129c97b6da5b8983"
         };
@@ -123,22 +99,14 @@
         const storage = getStorage(app);
         let editId = null;
 
-        // Formatação para R$ 10,00
-        const formatarMoeda = (valor) => {
-            return parseFloat(valor).toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
-        };
+        const fMoeda = (v) => Number(v).toLocaleString('pt-br', {style: 'currency', currency: 'BRL'});
 
-        // LOGIN
-        const loginFunc = () => {
+        // Login funcional
+        document.getElementById('btn-login').onclick = () => {
             const e = document.getElementById('email').value;
             const p = document.getElementById('pass').value;
-            if(!e || !p) return alert("Preencha os campos!");
-            signInWithEmailAndPassword(auth, e, p).catch(() => alert("E-mail ou Senha incorretos!"));
+            signInWithEmailAndPassword(auth, e, p).catch(() => alert("Erro no login"));
         };
-
-        document.getElementById('btn-login').onclick = loginFunc;
-        document.getElementById('pass').onkeypress = (e) => { if(e.key === 'Enter') loginFunc(); };
-        window.deslogar = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
             if(user) {
@@ -151,20 +119,18 @@
             }
         });
 
-        // UPLOAD DA GALERIA
+        // Upload direto da galeria
         document.getElementById('file-input').onchange = e => {
             const file = e.target.files[0];
             if(!file) return;
-            document.getElementById('p-bar').style.display = 'block';
-            const sRef = ref(storage, `produtos/${Date.now()}_${file.name}`);
+            const sRef = ref(storage, 'fotos/' + Date.now());
             const task = uploadBytesResumable(sRef, file);
-            
             task.on('state_changed', 
                 s => document.getElementById('progresso-fill').style.width = (s.bytesTransferred/s.totalBytes)*100+"%",
-                err => alert("Erro no Storage: Verifique se as regras estão públicas."),
+                err => alert("Erro no Storage! Verifique as regras de segurança."),
                 () => getDownloadURL(task.snapshot.ref).then(url => {
                     document.getElementById('p-img').value = url;
-                    document.getElementById('upload-status').innerText = "✅ Foto Carregada!";
+                    document.getElementById('upload-status').innerText = "✅ Foto Ok!";
                 })
             );
         };
@@ -173,129 +139,73 @@
             onSnapshot(query(collection(db, "pedidos"), orderBy("timestamp", "desc")), snap => {
                 document.getElementById('lista-pedidos').innerHTML = snap.docs.map(d => `
                     <div class="box item">
-                        <div><b>${d.data().cliente}</b><br><small>Total: ${formatarMoeda(d.data().total)}</small></div>
+                        <div><b>${d.data().cliente}</b><br>${fMoeda(d.data().total)}</div>
                         <button class="btn-acao" onclick="imprimirPedido('${d.id}')">🖨️</button>
                     </div>`).join('');
-                window.meusPedidos = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            });
-
-            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
-                document.getElementById('lista-categorias').innerHTML = snap.docs.map(d => `<div class="item" data-id="${d.id}"><span>☰ ${d.data().nome}</span><button onclick="apagar('categorias','${d.id}')" class="btn-acao">🗑️</button></div>`).join('');
-                document.getElementById('p-cat').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
+                window.pedidos = snap.docs.map(d => ({id: d.id, ...d.data()}));
             });
 
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
-                window.meusProds = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                document.getElementById('lista-produtos').innerHTML = window.meusProds.map(p => `
-                    <div class="item" data-id="${p.id}">
-                        <div class="prod-info">
-                            <img src="${p.img || ''}" class="img-lista">
-                            <div class="prod-text">
-                                <b>${p.name}</b>
-                                <span class="tag tag-price">${formatarMoeda(p.variations?.[0]?.price || 0)}</span>
-                            </div>
-                        </div>
+                window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                document.getElementById('lista-produtos').innerHTML = window.prods.map(p => `
+                    <div class="item">
+                        <img src="${p.img || ''}" class="img-lista">
+                        <div style="flex:1"><b>${p.name}</b><br>${fMoeda(p.variations?.[0]?.price || 0)}</div>
                         <button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button>
                         <button onclick="apagar('produtos','${p.id}')" class="btn-acao">🗑️</button>
                     </div>`).join('');
             });
+
+            onSnapshot(collection(db, "categorias"), snap => {
+                document.getElementById('p-cat').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
+            });
         }
 
-        window.addVarInput = (w="", p="", isP=false, pp="") => {
+        window.addVarInput = (w="", p="") => {
             const div = document.createElement('div');
             div.className = 'var-box';
-            div.innerHTML = `
-                <div style="display:flex; gap:5px;"><input type="text" placeholder="Peso/Tam" class="v-w" value="${w}"><input type="text" placeholder="Preço" class="v-p" value="${p}"></div>
-                <label style="font-size:11px;"><input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> Promoção</label>
-                <input type="text" class="v-pp" value="${pp}" style="display:${isP?'block':'none'}; border-color:red" placeholder="Preço Promo">
-                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px;">Remover</button>`;
+            div.innerHTML = `<input type="text" placeholder="Peso" class="v-w" value="${w}"><input type="text" placeholder="Preço" class="v-p" value="${p}"><button onclick="this.parentElement.remove()">X</button>`;
             document.getElementById('p-vars-area').appendChild(div);
         };
 
         document.getElementById('btn-save-prod').onclick = async () => {
-            const btn = document.getElementById('btn-save-prod');
-            btn.disabled = true; btn.innerText = "Salvando...";
-
             const vars = Array.from(document.querySelectorAll('.var-box')).map(r => ({
                 weight: r.querySelector('.v-w').value,
-                price: parseFloat(r.querySelector('.v-p').value.replace(',','.')) || 0,
-                isPromo: r.querySelector('.v-check').checked,
-                promoPrice: r.querySelector('.v-check').checked ? parseFloat(r.querySelector('.v-pp').value.replace(',','.')) : null
+                price: parseFloat(r.querySelector('.v-p').value.replace(',','.')) || 0
             }));
-
             const dados = {
                 name: document.getElementById('p-name').value,
                 img: document.getElementById('p-img').value,
-                stock: parseInt(document.getElementById('p-stock').value) || 0,
                 code: document.getElementById('p-code').value,
+                stock: document.getElementById('p-stock').value,
                 desc: document.getElementById('p-desc').value,
                 cat: document.getElementById('p-cat').value,
                 variations: vars, updatedAt: serverTimestamp()
             };
-
             if(editId) await updateDoc(doc(db, "produtos", editId), dados);
             else { dados.order = 0; await addDoc(collection(db, "produtos"), dados); }
-            
-            cancelarEdicao();
-            btn.disabled = false; btn.innerText = "SALVAR PRODUTO";
+            location.reload(); 
         };
 
         window.editarProd = (id) => {
-            const p = window.meusProds.find(x => x.id === id);
+            const p = window.prods.find(x => x.id === id);
             editId = id;
             document.getElementById('p-name').value = p.name;
-            document.getElementById('p-img').value = p.img || "";
-            document.getElementById('p-stock').value = p.stock || 0;
-            document.getElementById('p-code').value = p.code || "";
-            document.getElementById('p-desc').value = p.desc || "";
+            document.getElementById('p-img').value = p.img;
+            document.getElementById('p-code').value = p.code;
+            document.getElementById('p-stock').value = p.stock;
+            document.getElementById('p-desc').value = p.desc;
             document.getElementById('p-cat').value = p.cat;
-            document.getElementById('p-vars-area').innerHTML = "";
-            if(p.variations) p.variations.forEach(v => addVarInput(v.weight, v.price, v.isPromo, v.promoPrice));
-            document.getElementById('upload-status').innerText = "✅ Foto Atual";
+            p.variations.forEach(v => addVarInput(v.weight, v.price));
             window.scrollTo(0,0);
         };
 
-        window.cancelarEdicao = () => {
-            editId = null;
-            document.querySelectorAll('#t-produtos input:not([type=button])').forEach(i => i.value = "");
-            document.getElementById('p-vars-area').innerHTML = "";
-            document.getElementById('p-bar').style.display = 'none';
-            document.getElementById('upload-status').innerText = "📷 Foto da Galeria";
-        };
-
-        window.imprimirPedido = (id) => {
-            const p = window.meusPedidos.find(x => x.id === id);
-            const win = window.open('', '', 'width=600,height=800');
-            win.document.write(`<html><body style="font-family:monospace; width:58mm; padding:10px; font-size:12px;">
-                <center><b>CENTER PET</b></center><hr>
-                <b>CLIENTE:</b> ${p.cliente}<br><b>WHATS:</b> ${p.whatsapp || ''}<hr>
-                <table style="width:100%">${p.itens?.map(i => `<tr><td>${i.qtd}x ${i.nome}</td><td align="right">${formatarMoeda(i.subtotal)}</td></tr>`).join('')}</table><hr>
-                <center><b>TOTAL: ${formatarMoeda(p.total)}</b></center>
-                <script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
-        };
-
-        window.addCategoria = async () => {
-            const n = document.getElementById('n-cat').value;
-            if(n) await addDoc(collection(db, "categorias"), { nome: n, order: 0 });
-            document.getElementById('n-cat').value = "";
-        };
-
-        window.apagar = async (c, id) => { if(confirm("Deseja apagar?")) await deleteDoc(doc(db, c, id)); };
-
+        window.apagar = async (c, id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, c, id)); };
+        window.deslogar = () => signOut(auth);
         window.openTab = (id) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            event.currentTarget.classList.add('active');
         };
-
-        Sortable.create(document.getElementById('lista-categorias'), { animation: 150, onEnd: () => salvarOrdem("categorias", "lista-categorias") });
-        Sortable.create(document.getElementById('lista-produtos'), { animation: 150, onEnd: () => salvarOrdem("produtos", "lista-produtos") });
-
-        async function salvarOrdem(col, listId) {
-            const itens = document.getElementById(listId).querySelectorAll('.item');
-            for(let i=0; i<itens.length; i++) await updateDoc(doc(db, col, itens[i].dataset.id), { order: i });
-        }
     </script>
 </body>
 </html>
