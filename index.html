@@ -59,15 +59,9 @@
             if(searchTerm) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm));
             
             document.getElementById('grid').innerHTML = filtered.map(p => {
-                const firstVar = p.variations[0];
+                const displayVar = p.variations.find(v => v.isPromo) || p.variations[0];
                 const hasPromo = p.variations.some(v => v.isPromo);
-                // Preço de exibição no card (primeira variação ou a que estiver em promo)
-                const displayVar = p.variations.find(v => v.isPromo) || firstVar;
-                const priceHTML = displayVar.isPromo ? 
-                    `<span class="old-price">R$ ${Number(displayVar.price).toFixed(2)}</span>
-                     <span class="price promo">R$ ${Number(displayVar.promoPrice).toFixed(2)}</span>` :
-                    `<span class="price">R$ ${Number(displayVar.price).toFixed(2)}</span>`;
-
+                
                 return `
                 <div class="card" onclick="openProduct('${p.id}')">
                     ${hasPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
@@ -75,8 +69,8 @@
                     <div class="card-body">
                         <h4>${p.name}</h4>
                         <div class="price-container">
-                            <span class="price-label">${p.variations.length > 1 ? 'A partir de' : ''}</span>
-                            ${priceHTML}
+                            ${displayVar.isPromo ? `<span class="old-price">R$ ${displayVar.price.toFixed(2)}</span>` : ''}
+                            <span class="price ${displayVar.isPromo ? 'promo' : ''}">R$ ${(displayVar.isPromo ? displayVar.promoPrice : displayVar.price).toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
@@ -86,7 +80,6 @@
 
         window.openProduct = (id) => {
             selectedProduct = window.prods.find(p => p.id === id);
-            // Inicia com a primeira variação
             selectedVar = selectedProduct.variations[0];
             tempCart = []; qty = 1;
             
@@ -101,6 +94,11 @@
             document.getElementById('p-modal').classList.add('active');
         };
 
+        window.changeQty = (val) => {
+            qty = Math.max(1, qty + val);
+            updateModalUI();
+        };
+
         window.selectVar = (idx) => {
             selectedVar = selectedProduct.variations[idx];
             renderVars(); 
@@ -111,9 +109,8 @@
             document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => {
                 const valorFinal = v.isPromo ? v.promoPrice : v.price;
                 return `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">
-                    <span class="v-w">${v.weight}</span>
-                    <span class="v-p">R$ ${Number(valorFinal).toFixed(2)}</span>
-                    ${v.isPromo ? '<small style="color:red; font-size:9px">OFERTA</small>' : ''}
+                    <span>${v.weight}</span>
+                    <small>R$ ${valorFinal.toFixed(2)}</small>
                 </button>`;
             }).join('');
         }
@@ -124,13 +121,8 @@
             document.getElementById('m-price').innerText = `R$ ${(valorUnitario * qty).toFixed(2)}`;
             
             document.getElementById('m-temp-list').innerHTML = tempCart.map((i, idx) => `
-                <div class="c-item-row">
-                    <span><b>${i.weight}</b></span>
-                    <div class="qty-control mini">
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, -1)">-</button>
-                        <span>${i.qty}</span>
-                        <button class="qty-btn" onclick="updateTempQty(${idx}, 1)">+</button>
-                    </div>
+                <div class="cart-item">
+                    <span><b>${i.weight}</b> (${i.qty}x)</span>
                     <span>R$ ${(i.finalPrice * i.qty).toFixed(2)}</span>
                 </div>`).join('');
             document.getElementById('m-subtotal').innerText = tempCart.reduce((a,b) => a + (b.finalPrice * b.qty), 0).toFixed(2);
@@ -143,16 +135,20 @@
         };
         
         window.confirmToMain = () => {
-            const finalP = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
-            if(tempCart.length > 0) {
-                tempCart.forEach(item => {
-                    mainCart.push({ ...item, price: item.finalPrice });
-                });
-            } else {
-                mainCart.push({ ...selectedVar, price: finalP, qty, name: selectedProduct.name, code: selectedProduct.code });
-            }
+            if(tempCart.length === 0) addTemp();
+            tempCart.forEach(item => { mainCart.push({ ...item, price: item.finalPrice }); });
             saveCart();
             document.getElementById('p-modal').classList.remove('active');
+        };
+
+        window.shareProduct = () => {
+            const text = `Confira este produto na Center Pet: ${selectedProduct.name}`;
+            const url = window.location.href;
+            if (navigator.share) {
+                navigator.share({ title: 'Center Pet', text: text, url: url });
+            } else {
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + url)}`);
+            }
         };
 
         function saveCart() {
@@ -163,8 +159,7 @@
         function updateBadge() {
             const b = document.getElementById('badge');
             const total = mainCart.reduce((acc, i) => acc + i.qty, 0);
-            b.innerText = total;
-            b.style.display = total > 0 ? 'flex' : 'none';
+            b.innerText = total; b.style.display = total > 0 ? 'flex' : 'none';
         }
 
         window.showMainCart = () => {
@@ -239,10 +234,14 @@
         .var-btn { flex: 1; border: 2px solid #ddd; border-radius: 10px; padding: 10px; background: white; display: flex; flex-direction: column; align-items: center; margin: 4px; min-width: 80px; }
         .var-btn.active { border-color: var(--orange); background: #fff5ee; }
         .qty-control { display: flex; align-items: center; gap: 12px; background: #f1f1f1; padding: 8px; border-radius: 10px; }
-        .qty-btn { border: none; background: white; font-size: 18px; width: 30px; height: 30px; border-radius: 50%; color: var(--orange); font-weight: bold; }
-        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 16px; margin-top: 15px; }
+        .qty-btn { border: none; background: white; font-size: 18px; width: 35px; height: 35px; border-radius: 50%; color: var(--orange); font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; }
+        .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 16px; margin-top: 15px; cursor: pointer; }
         .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .cart-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .cart-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; justify-content: space-between; }
+        
+        /* Botões flutuantes */
+        .btn-share { position: absolute; top: 20px; right: 20px; background: #eee; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+        .whatsapp-float { position: fixed; bottom: 20px; right: 20px; background: #25d366; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 999; text-decoration: none; font-size: 30px; }
     </style>
 </head>
 <body>
@@ -257,9 +256,13 @@
 
     <div class="grid" id="grid"></div>
 
+    <a href="https://wa.me/5569999760742" class="whatsapp-float" target="_blank">🟢</a>
+
     <div id="p-modal" class="modal">
-        <div class="modal-inner">
+        <div class="modal-inner" style="position:relative">
             <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px; margin-bottom:10px;">✕</button>
+            <button class="btn-share" onclick="shareProduct()">📤</button>
+            
             <img id="m-img" src="">
             <h2 id="m-title" style="margin:10px 0;"></h2>
             <p id="m-desc" style="color:#666; font-size:14px;"></p>
@@ -269,7 +272,11 @@
             <div id="m-vars" style="display:flex; flex-wrap:wrap; margin: 15px 0;"></div>
             
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:15px; border-radius:15px;">
-                <div class="qty-control"><button class="qty-btn" onclick="qty = Math.max(1, qty-1); updateModalUI()">-</button><span id="m-qty">1</span><button class="qty-btn" onclick="qty++; updateModalUI()">+</button></div>
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="changeQty(-1)">-</button>
+                    <span id="m-qty" style="font-weight:bold; font-size:18px;">1</span>
+                    <button class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
                 <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
             </div>
 
