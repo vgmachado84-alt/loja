@@ -43,7 +43,8 @@
         onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
             window.prods = snap.docs.map(d => {
                 const p = { id: d.id, ...d.data() };
-                p.onPromo = String(p.isPromo) === 'true' || (p.promoPrice && Number(p.promoPrice) > 0);
+                // Ajuste para reconhecer boolean ou string 'true' do banco
+                p.onPromo = p.isPromo === true || String(p.isPromo) === 'true';
                 p.finalPrice = p.onPromo ? Number(p.promoPrice) : Number(p.price);
                 return p;
             });
@@ -56,7 +57,7 @@
                 cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
         }
 
-        window.filterCat = (c) => { currentCat = c; renderGrid(); onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => renderCatBar(snap.docs.map(d => d.data().nome))); };
+        window.filterCat = (c) => { currentCat = c; renderGrid(); };
         window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
 
         function renderGrid() {
@@ -67,6 +68,15 @@
             
             document.getElementById('grid').innerHTML = filtered.map(p => {
                 const temVariacoes = p.variations && p.variations.length > 1;
+                
+                // HTML do Preço Ajustado: Mostra preço riscado se for Promo
+                const precoHTML = p.onPromo ? `
+                    <span class="old-price">De R$ ${Number(p.price).toFixed(2)}</span>
+                    <span class="price promo">R$ ${p.finalPrice.toFixed(2)}</span>
+                ` : `
+                    <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
+                `;
+
                 return `
                 <div class="card" onclick="openProduct('${p.id}')">
                     ${p.onPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
@@ -75,7 +85,7 @@
                         <h4>${p.name}</h4>
                         <div class="price-container">
                             ${temVariacoes ? '<span class="price-label">A partir de</span>' : ''}
-                            <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
+                            ${precoHTML}
                         </div>
                     </div>
                     <button class="add-btn">+</button>
@@ -85,8 +95,11 @@
 
         window.openProduct = (id) => {
             selectedProduct = window.prods.find(p => p.id === id);
-            selectedVar = { ...selectedProduct.variations[0], price: selectedProduct.finalPrice };
+            // Ao abrir o modal, se for promo, usa o preço da promo
+            const precoInicial = selectedProduct.onPromo ? selectedProduct.finalPrice : Number(selectedProduct.variations[0].price);
+            selectedVar = { ...selectedProduct.variations[0], price: precoInicial };
             tempCart = []; qty = 1;
+            
             document.getElementById('m-img').src = selectedProduct.img || '';
             document.getElementById('m-title').innerText = selectedProduct.name;
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
@@ -105,13 +118,15 @@
 
         window.selectVar = (idx) => {
             const v = selectedProduct.variations[idx];
-            selectedVar = { ...v, price: selectedProduct.onPromo ? selectedProduct.finalPrice : Number(v.price) };
+            // Se o produto geral estiver em promo, usamos o preço de promo, senão o preço da variação
+            const precoExibicao = (selectedProduct.onPromo && idx === 0) ? selectedProduct.finalPrice : Number(v.price);
+            selectedVar = { ...v, price: precoExibicao };
             renderVars(); updateModalUI();
         };
 
         function renderVars() {
             document.getElementById('m-vars').innerHTML = selectedProduct.variations.map((v, idx) => {
-                const pEx = selectedProduct.onPromo ? selectedProduct.finalPrice : Number(v.price);
+                const pEx = (selectedProduct.onPromo && idx === 0) ? selectedProduct.finalPrice : Number(v.price);
                 return `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">
                     <span class="v-w">${v.weight}</span>
                     <span class="v-p">R$ ${pEx.toFixed(2)}</span>
@@ -217,7 +232,6 @@
 
         window.onload = updateBadge;
 
-        // REGISTRO DO SERVICE WORKER ADICIONADO AQUI
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("/loja/service-worker.js");
         }
@@ -243,9 +257,13 @@
         .card-body { padding: 8px; }
         .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
         
-        .price-container { display: flex; flex-direction: column; height: 30px; justify-content: flex-end; }
+        .price-container { display: flex; flex-direction: column; min-height: 45px; justify-content: flex-end; }
         .price-label { font-size: 10px; color: #888; margin-bottom: -2px; }
+        
+        /* ESTILOS DE PROMOÇÃO */
+        .old-price { text-decoration: line-through; color: #999; font-size: 11px; margin-bottom: -4px; }
         .price { color: var(--orange); font-weight: bold; font-size: 16px; }
+        .price.promo { color: #e74c3c; font-size: 18px; }
         
         .promo-badge { position: absolute; top: 5px; left: 5px; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 5; }
         .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--orange); color: white; border: none; width: 28px; height: 28px; border-radius: 8px; font-size: 20px; }
