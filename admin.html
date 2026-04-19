@@ -27,18 +27,8 @@
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
         
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; }
-        .pedido-card { border-left: 5px solid var(--orange); margin-bottom: 10px; }
-        .btn-print { background: #333; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        
-        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
         .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        
-        /* ESTILO OCULTO PARA IMPRESSÃO */
-        @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 58mm; }
-        }
     </style>
 </head>
 <body>
@@ -49,7 +39,7 @@
             <input type="email" id="login-email" placeholder="E-mail" autocomplete="off">
             <input type="password" id="login-pass" placeholder="Senha" autocomplete="new-password">
             <button onclick="handleLogin()">ENTRAR NO PAINEL</button>
-            <p id="login-error" style="color: red; font-size: 12px; margin-top: 15px; font-weight: bold; min-height: 15px;"></p>
+            <p id="login-error" style="color: red; font-size: 12px; margin-top: 15px; font-weight: bold;"></p>
         </div>
     </div>
 
@@ -58,15 +48,12 @@
             <button class="tab-btn active" onclick="openTab('tab-pedidos')">📥 PEDIDOS</button>
             <button class="tab-btn" onclick="openTab('tab-cadastro')">📦 PRODUTOS</button>
             <button class="tab-btn" onclick="openTab('tab-categoria')">📂 CATEGORIAS</button>
-            <button class="tab-btn" onclick="openTab('tab-config')">⚙️ AJUSTES</button>
             <button class="tab-btn" onclick="handleLogout()" style="color:#ffcccc">SAIR</button>
         </div>
 
         <div id="tab-pedidos" class="tab-content active">
             <h3 style="color:var(--green)">Pedidos Recentes</h3>
-            <div id="pedidos-list">
-                <p style="text-align:center; color:#999;">Carregando pedidos...</p>
-            </div>
+            <div id="pedidos-list"></div>
         </div>
 
         <div id="tab-cadastro" class="tab-content">
@@ -89,24 +76,20 @@
 
         <div id="tab-categoria" class="tab-content">
             <div class="box">
-                <input type="text" id="new-cat" placeholder="Nova Categoria">
-                <button onclick="addCategory()" class="btn-save">ADICIONAR CATEGORIA</button>
+                <h3 style="margin-top:0; color:var(--green)">Categorias</h3>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="new-cat" placeholder="Ex: Rações, Acessórios...">
+                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold;">ADD</button>
+                </div>
             </div>
             <div id="cat-list"></div>
-        </div>
-        
-        <div id="tab-config" class="tab-content">
-            <div class="box">
-                <h3>Configurações da Loja</h3>
-                <p>Ajuste o logo e informações de contato aqui.</p>
-            </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
@@ -122,11 +105,10 @@
         const db = getFirestore(app);
         let photoBase64 = "", editId = null;
 
-        // --- LOGIN ---
         window.handleLogin = () => {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-            signInWithEmailAndPassword(auth, email, pass).catch(() => alert("Erro no Login"));
+            signInWithEmailAndPassword(auth, email, pass).catch(() => alert("Dados Incorretos"));
         };
 
         window.handleLogout = () => { if(confirm("Sair?")) signOut(auth).then(() => location.reload()); };
@@ -135,70 +117,48 @@
             if (user) {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('admin-wrapper').style.display = 'block';
-                loadData();
+                initData();
             }
         });
 
-        function loadData() {
-            // Carregar Pedidos
+        function initData() {
+            // PEDIDOS
             onSnapshot(query(collection(db, "pedidos"), orderBy("timestamp", "desc")), snap => {
                 const list = document.getElementById('pedidos-list');
-                list.innerHTML = snap.docs.map(d => {
-                    const p = d.data();
-                    const dataFormatada = p.timestamp ? new Date(p.timestamp.seconds * 1000).toLocaleString() : 'Recentemente';
-                    return `
-                        <div class="box item pedido-card">
-                            <div style="flex:1">
-                                <b>${p.cliente}</b> <br>
-                                <small>${dataFormatada}</small> <br>
-                                <span style="color:var(--orange); font-weight:bold;">Total: R$ ${p.total}</span>
-                            </div>
-                            <button class="btn-print" onclick="imprimirCupom('${d.id}')">🖨️ IMPRIMIR</button>
-                        </div>
-                    `;
-                }).join('');
+                list.innerHTML = snap.docs.map(d => `
+                    <div class="box item">
+                        <div style="flex:1"><b>${d.data().cliente}</b><br><small>R$ ${d.data().total}</small></div>
+                        <button onclick="imprimirCupom('${d.id}')" style="background:#333; color:white; border:none; padding:8px; border-radius:5px;">🖨️</button>
+                    </div>
+                `).join('');
                 window.pedidosData = snap.docs.map(d => ({id: d.id, ...d.data()}));
             });
 
-            // Carregar Produtos (Existente)
+            // CATEGORIAS
+            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
+                const list = document.getElementById('cat-list');
+                const select = document.getElementById('cat-select');
+                list.innerHTML = snap.docs.map(d => `
+                    <div class="item" data-id="${d.id}"><span>☰ ${d.data().nome}</span>
+                    <button onclick="deleteItem('categorias', '${d.id}')" style="color:red; background:none; border:none;">🗑️</button></div>
+                `).join('');
+                select.innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
+            });
+
+            // PRODUTOS
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
                 const list = document.getElementById('prod-list');
-                list.innerHTML = snap.docs.map(d => `<div class="item"><span>${d.data().name}</span> <button onclick="editProd('${d.id}')">✏️</button></div>`).join('');
                 window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                list.innerHTML = window.prods.map(p => `
+                    <div class="item" data-id="${p.id}">
+                        <div style="flex:1"><b>${p.name}</b><br><small>Estoque: ${p.stock}</small></div>
+                        <button onclick="editProd('${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">✏️</button>
+                        <button onclick="deleteItem('produtos', '${p.id}')" style="background:#eee; border:none; padding:8px; border-radius:5px;">🗑️</button>
+                    </div>
+                `).join('');
             });
         }
 
-        // --- FUNÇÃO DE IMPRESSÃO ---
-        window.imprimirCupom = (id) => {
-            const pedido = window.pedidosData.find(p => p.id === id);
-            const win = window.open('', '', 'width=600,height=600');
-            win.document.write(`
-                <html>
-                <body style="font-family:monospace; width:58mm; padding:5px; font-size:12px;">
-                    <div style="text-align:center;">
-                        <h3 style="margin:0;">CENTER PET</h3>
-                        <p>Ji-Paraná - RO</p>
-                        <hr>
-                        <b>RESUMO DO PEDIDO</b>
-                    </div>
-                    <p><b>Cliente:</b> ${pedido.cliente}</p>
-                    <p><b>Endereço:</b> ${pedido.endereco || 'Retirada'}</p>
-                    <hr>
-                    <table style="width:100%; font-size:11px;">
-                        ${pedido.itens.map(i => `<tr><td>${i.qtd}x ${i.nome}</td><td align="right">R$ ${i.subtotal}</td></tr>`).join('')}
-                    </table>
-                    <hr>
-                    <div style="text-align:center; font-size:14px;"><b>TOTAL: R$ ${pedido.total}</b></div>
-                    <hr>
-                    <p style="text-align:center;">Obrigado pela preferência!</p>
-                    <script>window.onload = function(){ window.print(); window.close(); }<\/script>
-                </body>
-                </html>
-            `);
-            win.document.close();
-        };
-
-        // --- ABA NAVEGAÇÃO ---
         window.openTab = (t) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -206,22 +166,61 @@
             event.currentTarget.classList.add('active');
         };
 
-        // ... (resto das suas funções de saveProduct, addVar, etc) ...
         window.addVar = (w="", p="") => {
             const div = document.createElement('div');
             div.className = 'var-row-box';
-            div.innerHTML = `<input type="text" placeholder="Peso" value="${w}" class="v-w"> <input type="number" placeholder="Preço" value="${p}" class="v-p">`;
+            div.innerHTML = `<input type="text" placeholder="Peso" value="${w}" class="v-w"> <input type="number" placeholder="Preço" value="${p}" class="v-p"> <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px;">remover</button>`;
             document.getElementById('vars').appendChild(div);
         };
 
         window.saveProduct = async () => {
-            const name = document.getElementById('name').value;
-            const stock = parseInt(document.getElementById('stock').value) || 0;
-            const data = { name, stock, timestamp: serverTimestamp(), order: 0 };
-            await addDoc(collection(db, "produtos"), data);
-            alert("Salvo!");
+            const btn = document.getElementById('btn-main-save');
+            const varRows = Array.from(document.querySelectorAll('.var-row-box'));
+            const variations = varRows.map(r => ({ weight: r.querySelector('.v-w').value, price: parseFloat(r.querySelector('.v-p').value) || 0 }));
+            
+            const data = {
+                code: document.getElementById('code').value,
+                name: document.getElementById('name').value,
+                desc: document.getElementById('desc').value,
+                cat: document.getElementById('cat-select').value,
+                stock: parseInt(document.getElementById('stock').value) || 0,
+                variations: variations,
+                updatedAt: serverTimestamp()
+            };
+            if(photoBase64) data.img = photoBase64;
+
+            if(editId) await updateDoc(doc(db, "produtos", editId), data);
+            else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
+            alert("Sucesso!"); location.reload();
         };
 
+        window.editProd = (id) => {
+            const p = window.prods.find(i => i.id === id);
+            editId = id;
+            document.getElementById('code').value = p.code || "";
+            document.getElementById('name').value = p.name;
+            document.getElementById('stock').value = p.stock;
+            document.getElementById('desc').value = p.desc || "";
+            document.getElementById('cat-select').value = p.cat;
+            document.getElementById('vars').innerHTML = "";
+            if(p.variations) p.variations.forEach(v => addVar(v.weight, v.price));
+            openTab('tab-cadastro');
+        };
+
+        window.addCategory = async () => {
+            const nome = document.getElementById('new-cat').value;
+            if(nome) await addDoc(collection(db, "categorias"), { nome, order: 0 });
+            document.getElementById('new-cat').value = "";
+        };
+
+        window.deleteItem = async (col, id) => { if(confirm("Excluir?")) await deleteDoc(doc(db, col, id)); };
+
+        window.handleFile = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => photoBase64 = event.target.result;
+            reader.readAsDataURL(file);
+        };
     </script>
 </body>
 </html>
