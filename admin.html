@@ -9,11 +9,13 @@
         :root { --green: #2d5a27; --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
         
+        /* LOGIN */
         #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #eee; }
         .login-card { background: white; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
+        /* INTERFACE */
         #admin-wrapper { display: none; }
         .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; overflow-x: auto; }
         .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
@@ -24,13 +26,13 @@
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
-        /* LISTA DE PRODUTOS COM VISUALIZAÇÃO */
+        /* LISTA DE PRODUTOS */
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
-        .prod-info { flex: 1; font-size: 14px; }
-        .prod-info b { color: var(--green); display: block; margin-bottom: 3px; }
-        .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-right: 5px; }
+        .prod-info { flex: 1; font-size: 13px; }
+        .prod-info b { color: var(--green); display: block; font-size: 15px; }
+        .tag { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 4px; margin-top: 4px; }
         .tag-price { background: #e8f5e9; color: #2e7d32; }
-        .tag-promo { background: #ffebee; color: #c62828; }
+        .tag-promo { background: #d00; color: #fff; }
         .tag-stock { background: #f3f4f6; color: #4b5563; }
 
         .btn-acao { background: #eee; border: none; padding: 10px; border-radius: 8px; cursor: pointer; margin-left: 5px; }
@@ -67,7 +69,7 @@
             <div class="box">
                 <h3 id="form-title" style="margin-top:0; color:var(--green)">Novo Produto</h3>
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="p-code" placeholder="Cód">
+                    <input type="text" id="p-code" placeholder="Cód/Ref">
                     <input type="number" id="p-stock" placeholder="Estoque">
                 </div>
                 <input type="text" id="p-name" placeholder="Nome do Produto">
@@ -148,15 +150,18 @@
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
                 window.dadosProdutos = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 document.getElementById('lista-produtos').innerHTML = window.dadosProdutos.map(p => {
+                    // Verifica se alguma variação está em promoção
+                    const promoActive = p.variations && p.variations.some(v => v.isPromo);
                     const firstVar = p.variations ? p.variations[0] : null;
+
                     return `
                     <div class="item" data-id="${p.id}">
                         <div class="prod-info">
                             <b>${p.name}</b>
                             <span class="tag tag-stock">REF: ${p.code || '--'}</span>
-                            <span class="tag tag-stock">ESTOQUE: ${p.stock || 0}</span>
+                            <span class="tag tag-stock">QTD: ${p.stock || 0}</span>
                             ${firstVar ? `<span class="tag tag-price">R$ ${firstVar.price}</span>` : ''}
-                            ${firstVar && firstVar.isPromo ? `<span class="tag tag-promo">PROMO: R$ ${firstVar.promoPrice}</span>` : ''}
+                            ${promoActive ? `<span class="tag tag-promo">PROMOÇÃO ATIVA</span>` : ''}
                         </div>
                         <div style="display:flex;">
                             <button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button>
@@ -176,8 +181,8 @@
                     <input type="number" placeholder="R$ Preço" class="v-p" value="${p}">
                 </div>
                 <div style="margin-top:8px;">
-                    <label style="font-size:12px;"><input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.parentElement.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> Promoção?</label>
-                    <input type="number" placeholder="R$ Valor Promo" class="v-pp" value="${pp}" style="display: ${isP ? 'block' : 'none'}; border-color: red; margin-top:5px;">
+                    <label style="font-size:12px; font-weight:bold;"><input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.parentElement.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> ATIVAR PROMOÇÃO</label>
+                    <input type="number" placeholder="R$ Valor Promo" class="v-pp" value="${pp}" style="display: ${isP ? 'block' : 'none'}; border: 2px solid red; margin-top:5px;">
                 </div>
                 <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px; margin-top:5px; cursor:pointer;">[x] Remover</button>
             `;
@@ -185,9 +190,6 @@
         };
 
         document.getElementById('btn-save-prod').onclick = async () => {
-            const btn = document.getElementById('btn-save-prod');
-            btn.disabled = true; btn.innerText = "SALVANDO...";
-
             const vars = Array.from(document.querySelectorAll('.var-box')).map(r => ({
                 weight: r.querySelector('.v-w').value,
                 price: parseFloat(r.querySelector('.v-p').value) || 0,
@@ -209,7 +211,6 @@
             else { dados.order = 0; await addDoc(collection(db, "produtos"), dados); }
             
             cancelarEdicao();
-            btn.disabled = false; btn.innerText = "SALVAR";
             alert("Sucesso!");
         };
 
@@ -255,7 +256,7 @@
             document.getElementById('n-cat').value = "";
         };
 
-        window.apagar = async (c, id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, c, id)); };
+        window.apagar = async (c, id) => { if(confirm("Deseja apagar?")) await deleteDoc(doc(db, c, id)); };
 
         window.openTab = (id) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
