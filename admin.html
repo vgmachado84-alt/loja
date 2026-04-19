@@ -22,7 +22,6 @@
         const db = getFirestore(app);
         let photoBase64 = "", editId = null;
 
-        // --- NAVEGAÇÃO ---
         window.openTab = (t) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -30,7 +29,6 @@
             if(event) event.currentTarget.classList.add('active');
         };
 
-        // --- CATEGORIAS ---
         const catList = document.getElementById('cat-list');
         Sortable.create(catList, { animation: 150, onEnd: () => saveOrder("categorias", catList) });
 
@@ -50,7 +48,6 @@
             document.getElementById('new-cat').value = "";
         };
 
-        // --- PRODUTOS ---
         const prodList = document.getElementById('prod-list');
         Sortable.create(prodList, { animation: 150, onEnd: () => saveOrder("produtos", prodList) });
 
@@ -80,39 +77,62 @@
             if(file) { photoBase64 = await compressImage(file); alert("Foto carregada com sucesso!"); }
         };
 
-        window.addVar = (w="", p="", promo=false) => {
+        // FUNÇÃO DE ADICIONAR VARIAÇÃO AJUSTADA COM CAMPO DE PREÇO PROMOCIONAL
+        window.addVar = (w="", p="", isPromo=false, promoPrice="") => {
             const div = document.createElement('div');
-            div.className = 'var-row';
+            div.className = 'var-row-box';
             div.innerHTML = `
-                <input type="text" placeholder="Peso" value="${w}" class="v-w" style="flex:2">
-                <input type="number" placeholder="Preço" value="${p}" class="v-p" style="flex:2">
-                <label style="flex:1; font-size:10px">Oferta?<input type="checkbox" class="v-promo" ${promo ? 'checked' : ''}></label>
-                <button onclick="this.parentElement.remove()">X</button>`;
+                <div class="var-inputs">
+                    <input type="text" placeholder="Peso (ex: 1kg)" value="${w}" class="v-w">
+                    <input type="number" placeholder="Preço Normal" value="${p}" class="v-p">
+                </div>
+                <div class="var-promo-area">
+                    <label><input type="checkbox" class="v-promo" ${isPromo ? 'checked' : ''} onchange="togglePromoField(this)"> Em Oferta?</label>
+                    <input type="number" placeholder="Preço Promo" value="${promoPrice}" class="v-promo-price" style="display: ${isPromo ? 'block' : 'none'}">
+                </div>
+                <button class="btn-del-var" onclick="this.parentElement.remove()">remover</button>`;
             document.getElementById('vars').appendChild(div);
         };
 
+        window.togglePromoField = (el) => {
+            const priceInput = el.parentElement.parentElement.querySelector('.v-promo-price');
+            priceInput.style.display = el.checked ? 'block' : 'none';
+        };
+
         window.saveProduct = async () => {
-            const vars = Array.from(document.querySelectorAll('.var-row')).map(r => ({
+            const varRows = Array.from(document.querySelectorAll('.var-row-box'));
+            if(varRows.length === 0) return alert("Adicione pelo menos um peso e preço!");
+
+            const variations = varRows.map(r => ({
                 weight: r.querySelector('.v-w').value,
-                price: parseFloat(r.querySelector('.v-p').value),
-                isPromo: r.querySelector('.v-promo').checked
+                price: parseFloat(r.querySelector('.v-p').value) || 0,
+                isPromo: r.querySelector('.v-promo').checked,
+                promoPrice: r.querySelector('.v-promo').checked ? parseFloat(r.querySelector('.v-promo-price').value) : null
             }));
+
+            // Lógica para a vitrine: se a primeira variação for promo, o produto inteiro assume o estado de promo
+            const mainVar = variations[0];
+
             const data = {
                 code: document.getElementById('code').value,
                 name: document.getElementById('name').value,
                 desc: document.getElementById('desc').value,
                 cat: document.getElementById('cat-select').value,
                 stock: document.getElementById('stock').value,
-                variations: vars,
-                price: vars[0]?.price || 0,
+                variations: variations,
+                // Campos essenciais que a sua VITRINE lê:
+                price: mainVar.price,
+                isPromo: mainVar.isPromo, 
+                promoPrice: mainVar.promoPrice,
                 updatedAt: serverTimestamp()
             };
+
             if(photoBase64) data.img = photoBase64;
             
             try {
                 if(editId) await updateDoc(doc(db, "produtos", editId), data);
                 else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
-                alert("Produto Salvo!");
+                alert("Produto Salvo com Sucesso!");
                 location.reload();
             } catch (e) { alert("Erro ao salvar: " + e.message); }
         };
@@ -123,7 +143,8 @@
                 <div class="item" data-id="${p.id}">
                     <div style="flex:1">
                         <small style="color:#2d5a27; font-weight:bold;">[CÓD: ${p.code || '---'}]</small> | 
-                        <small style="color:#007bff; font-weight:bold;">ESTOQUE: ${p.stock || '0'}</small><br>
+                        <small style="color:#007bff; font-weight:bold;">ESTOQUE: ${p.stock || '0'}</small>
+                        ${p.isPromo ? '<b style="color:red; font-size:10px; margin-left:10px;">🔥 PROMO</b>' : ''}<br>
                         <b style="font-size:16px">${p.name}</b>
                     </div>
                     <div>
@@ -144,11 +165,12 @@
             document.getElementById('cat-select').value = p.cat;
             document.getElementById('vars').innerHTML = "";
             photoBase64 = p.img || "";
-            p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo));
+            if(p.variations) {
+                p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo, v.promoPrice || ""));
+            }
             openTab('tab-cadastro');
         };
 
-        // --- CONFIGURAÇÕES (LOGO) ---
         window.handleLogo = (e) => {
             const file = e.target.files[0];
             const reader = new FileReader();
@@ -179,7 +201,14 @@
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; cursor: move; }
-        .var-row { display: flex; gap: 5px; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; align-items: center; }
+        
+        /* Estilo para as variações ficarem organizadas */
+        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; position: relative; }
+        .var-inputs { display: flex; gap: 10px; }
+        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+        .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
+        .btn-del-var { background: none; border: none; color: #999; text-decoration: underline; font-size: 11px; cursor: pointer; margin-top: 5px; }
+        
         .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         h3 { margin-top: 0; color: var(--green); }
     </style>
@@ -205,10 +234,12 @@
             <label style="font-size: 12px; color: #666;">Foto do Produto:</label>
             <input type="file" accept="image/*" onchange="handleFile(event)">
             
-            <div id="vars" style="margin-top:10px;"></div>
-            <button onclick="addVar()" style="width:100%; padding:10px; background:#f0f7f0; border:1px dashed var(--green); color:var(--green); font-weight:bold; cursor:pointer">+ Adicionar Peso e Preço</button>
+            <div id="vars" style="margin-top:15px;">
+                <label style="font-weight: bold; color: var(--green);">Preços e Promoções:</label>
+            </div>
+            <button onclick="addVar()" style="width:100%; padding:10px; background:#f0f7f0; border:1px dashed var(--green); color:var(--green); font-weight:bold; cursor:pointer; margin-top:10px;">+ Adicionar Peso e Preço</button>
             
-            <button class="btn-save" onclick="saveProduct()">SALVAR PRODUTO</button>
+            <button class="btn-save" onclick="saveProduct()">SALVAR PRODUTO NO BANCO</button>
         </div>
         <div id="prod-list"></div>
     </div>
@@ -216,7 +247,6 @@
     <div id="tab-categoria" class="tab-content">
         <div class="box">
             <h3>Categorias</h3>
-            <p style="font-size: 12px; color: #666;">Arraste para reordenar como elas aparecem no menu.</p>
             <div style="display:flex; gap:10px;">
                 <input type="text" id="new-cat" placeholder="Nova Categoria">
                 <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px 15px; border-radius:8px; font-weight:bold">ADD</button>
@@ -230,7 +260,6 @@
             <h3>Configurações da Vitrine</h3>
             <label>Alterar Logo Superior:</label>
             <input type="file" accept="image/*" onchange="handleLogo(event)">
-            <p style="font-size: 12px; color: #888; margin-top: 15px;">Dica: Use imagens com fundo transparente (PNG) para um acabamento melhor.</p>
         </div>
     </div>
 </body>
