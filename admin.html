@@ -3,35 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Center Pet</title>
+    <title>Admin Center Pet - Gestão Completa</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
-        .login-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        :root { --green: #2d5a27; --orange: #ff7800; }
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
+        
+        /* TELA DE LOGIN */
+        #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; padding: 20px; }
         .login-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        .orange-bar { background: #ff7800; color: white; padding: 15px; font-weight: bold; border-radius: 10px; margin-bottom: 20px; text-transform: uppercase; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; outline: none; font-size: 16px; }
-        button { width: 100%; background: #ff7800; color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        
-        #admin-content { display: none; padding: 15px; }
-        .header { background: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
-        
-        /* Estilo do Formulário */
-        .form-card { background: #fff; padding: 20px; border-radius: 20px; margin-bottom: 20px; border: 2px solid #ff7800; }
-        .form-title { font-weight: bold; color: #ff7800; margin-bottom: 10px; display: block; text-transform: uppercase; font-size: 12px; }
+        .login-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
+        .login-card button { width: 100%; background: var(--orange); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 
-        .prod-card { background: white; padding: 12px; border-radius: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; border: 1px solid #eee; }
-        .prod-img { width: 50px; height: 50px; object-fit: contain; border-radius: 8px; background: #f9f9f9; }
-        .prod-info { flex: 1; }
-        .prod-name { font-weight: bold; font-size: 13px; color: #333; margin: 0; }
-        .prod-meta { font-size: 11px; color: #888; margin: 2px 0; }
-        .btn-del { background: #fff1f1; color: #ff4444; border: none; padding: 10px; border-radius: 10px; font-weight: bold; width: auto; margin: 0; }
+        /* INTERFACE ADMIN */
+        #admin-wrapper { display: none; } /* Escondido antes do login */
+        .tabs { display: flex; background: var(--green); position: sticky; top: 0; z-index: 100; }
+        .tab-btn { flex: 1; padding: 15px; border: none; color: white; background: none; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .tab-btn.active { background: #1e3d1a; border-bottom: 3px solid #fff; }
+        .tab-content { display: none; padding: 15px; max-width: 550px; margin: auto; }
+        .tab-content.active { display: block; }
+        .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; }
+        .var-row-box { background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; }
+        .var-inputs { display: flex; gap: 10px; }
+        .var-promo-area { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+        .v-promo-price { background: #fff0f0; border: 1px solid #ffcccc !important; color: #d00; font-weight: bold; }
+        .btn-save { width: 100%; padding: 18px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen" class="login-container">
+    <div id="login-screen">
         <div class="login-card">
-            <div class="orange-bar">CENTER PET ADMIN</div>
+            <div style="background: var(--green); color: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-weight: bold;">CENTER PET ADMIN</div>
             <input type="email" id="login-email" placeholder="E-mail">
             <input type="password" id="login-pass" placeholder="Senha">
             <button onclick="handleLogin()">ENTRAR</button>
@@ -39,43 +44,55 @@
         </div>
     </div>
 
-    <div id="admin-content">
-        <div class="header">
-            <b style="color: #ff7800;">CENTER PET ADMIN</b>
-            <button onclick="handleLogout()" style="background:none; color: #888; width: auto; padding: 0; font-size: 12px;">SAIR</button>
+    <div id="admin-wrapper">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab('tab-cadastro')">PRODUTOS</button>
+            <button class="tab-btn" onclick="openTab('tab-categoria')">CATEGORIAS</button>
+            <button class="tab-btn" onclick="openTab('tab-config')">AJUSTES</button>
+            <button class="tab-btn" onclick="handleLogout()" style="color: #ffcccc; flex: 0.5;">SAIR</button>
         </div>
 
-        <br>
-
-        <div class="form-card">
-            <span class="form-title">Cadastrar Novo Produto</span>
-            <input type="text" id="p-name" placeholder="Nome do Produto">
-            <input type="text" id="p-img" placeholder="Link da Imagem">
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="p-price" placeholder="Preço (ex: 25,00)">
-                <input type="number" id="p-stock" placeholder="Estoque">
+        <div id="tab-cadastro" class="tab-content active">
+            <div class="box">
+                <h3>Gerenciar Produto</h3>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="code" placeholder="Cód">
+                    <input type="number" id="stock" placeholder="Estoque">
+                </div>
+                <input type="text" id="name" placeholder="Nome">
+                <textarea id="desc" placeholder="Descrição"></textarea>
+                <select id="cat-select"></select>
+                <input type="file" accept="image/*" onchange="handleFile(event)">
+                <div id="vars" style="margin-top:15px;"></div>
+                <button onclick="addVar()" style="width:100%; padding:10px; border:1px dashed var(--green); color:var(--green); background:none; font-weight:bold;">+ Peso e Preço</button>
+                <button class="btn-save" id="btn-main-save" onclick="saveProduct()">SALVAR PRODUTO</button>
             </div>
-            <select id="p-cat">
-                <option value="Acessórios">Acessórios</option>
-                <option value="Rações">Rações</option>
-                <option value="Pássaros">Pássaros</option>
-                <option value="Higiene">Higiene</option>
-            </select>
-            <button onclick="saveProduct()" id="btn-save">SALVAR NO ESTOQUE</button>
+            <div id="prod-list"></div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; margin: 20px 0 10px;">
-            <b style="font-size: 12px; color: #666;">SEU ESTOQUE</b>
-            <span id="counter" style="font-size: 12px; color: #ff7800; font-weight: bold;">0 itens</span>
+        <div id="tab-categoria" class="tab-content">
+            <div class="box">
+                <h3>Categorias</h3>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="new-cat" placeholder="Nova Categoria">
+                    <button onclick="addCategory()" style="background:var(--green); color:white; border:none; padding:10px; border-radius:8px;">ADD</button>
+                </div>
+            </div>
+            <div id="cat-list"></div>
         </div>
 
-        <div id="list-prods"></div>
+        <div id="tab-config" class="tab-content">
+            <div class="box">
+                <h3>Logo da Loja</h3>
+                <input type="file" accept="image/*" onchange="handleLogo(event)">
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
@@ -89,12 +106,15 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        let photoBase64 = "", editId = null;
 
-        // LOGIN
+        // --- SISTEMA DE LOGIN ---
         window.handleLogin = () => {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-            signInWithEmailAndPassword(auth, email, pass).catch(() => alert("Dados incorretos!"));
+            signInWithEmailAndPassword(auth, email, pass).catch(err => {
+                document.getElementById('login-error').innerText = "E-mail ou senha incorretos!";
+            });
         };
 
         window.handleLogout = () => signOut(auth);
@@ -102,68 +122,182 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('admin-content').style.display = 'block';
-                loadInventory();
+                document.getElementById('admin-wrapper').style.display = 'block';
+                initApp(); // Só carrega os dados se logar
             } else {
                 document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('admin-content').style.display = 'none';
+                document.getElementById('admin-wrapper').style.display = 'none';
             }
         });
 
-        // SALVAR PRODUTO
-        window.saveProduct = async () => {
-            const btn = document.getElementById('btn-save');
-            const name = document.getElementById('p-name').value;
-            const img = document.getElementById('p-img').value;
-            const price = document.getElementById('p-price').value;
-            const stock = document.getElementById('p-stock').value;
-            const cat = document.getElementById('p-cat').value;
-
-            if(!name || !price) return alert("Preencha nome e preço!");
-
-            btn.innerText = "SALVANDO...";
-            btn.disabled = true;
-
-            await addDoc(collection(db, "produtos"), {
-                name, img, price, stock, cat,
-                order: Date.now() 
+        // --- FUNÇÕES DA SUA INTERFACE ---
+        function initApp() {
+            // Carregar Categorias
+            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), (snap) => {
+                catList.innerHTML = snap.docs.map(d => `
+                    <div class="item" data-id="${d.id}">
+                        <span>☰ ${d.data().nome}</span>
+                        <button onclick="deleteItem('categorias', '${d.id}')" style="color:red; background:none; border:none;">🗑️</button>
+                    </div>
+                `).join('');
+                document.getElementById('cat-select').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
 
-            // Limpa campos
-            document.getElementById('p-name').value = "";
-            document.getElementById('p-img').value = "";
-            document.getElementById('p-price').value = "";
-            document.getElementById('p-stock').value = "";
-            
-            btn.innerText = "SALVAR NO ESTOQUE";
-            btn.disabled = false;
-        };
-
-        // CARREGAR LISTA
-        function loadInventory() {
-            onSnapshot(query(collection(db, "produtos"), orderBy("order", "desc")), snap => {
-                const list = document.getElementById('list-prods');
-                document.getElementById('counter').innerText = snap.size + " itens";
-                
-                list.innerHTML = snap.docs.map(d => {
-                    const p = d.data();
+            // Carregar Produtos
+            onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
+                window.prods = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                prodList.innerHTML = window.prods.map(p => {
+                    const temPromo = p.isPromo || (p.variations && p.variations.some(v => v.isPromo));
                     return `
-                        <div class="prod-card">
-                            <img src="${p.img || 'https://via.placeholder.com/50'}" class="prod-img">
-                            <div class="prod-info">
-                                <p class="prod-name">${p.name}</p>
-                                <p class="prod-meta">${p.cat} • R$ ${p.price}</p>
-                            </div>
-                            <button onclick="deleteItem('${d.id}')" class="btn-del">🗑</button>
+                    <div class="item" data-id="${p.id}">
+                        <div style="flex:1">
+                            <small style="color:var(--green); font-weight:bold;">[CÓD: ${p.code || '---'}]</small> | 
+                            <small style="color:#007bff; font-weight:bold;">EST: ${p.stock || '0'}</small>
+                            ${temPromo ? '<b style="color:red; font-size:10px; margin-left:10px;">🔥 PROMO</b>' : ''}<br>
+                            <b style="font-size:16px">${p.name}</b>
                         </div>
-                    `;
+                        <div>
+                            <button onclick="editProd('${p.id}')">✏️</button>
+                            <button onclick="deleteItem('produtos', '${p.id}')">🗑️</button>
+                        </div>
+                    </div>`;
                 }).join('');
             });
         }
 
-        window.deleteItem = async (id) => {
-            if(confirm("Excluir produto?")) await deleteDoc(doc(db, "produtos", id));
+        window.openTab = (t) => {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            if(event) event.currentTarget.classList.add('active');
         };
+
+        const catList = document.getElementById('cat-list');
+        Sortable.create(catList, { animation: 150, onEnd: () => saveOrder("categorias", catList) });
+        const prodList = document.getElementById('prod-list');
+        Sortable.create(prodList, { animation: 150, onEnd: () => saveOrder("produtos", prodList) });
+
+        window.addCategory = async () => {
+            const nome = document.getElementById('new-cat').value;
+            if(nome) await addDoc(collection(db, "categorias"), { nome, order: 0 });
+            document.getElementById('new-cat').value = "";
+        };
+
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                };
+            });
+        }
+
+        window.handleFile = async (e) => {
+            const file = e.target.files[0];
+            if(file) { photoBase64 = await compressImage(file); alert("Foto pronta!"); }
+        };
+
+        window.addVar = (w="", p="", isPromo=false, promoPrice="") => {
+            const div = document.createElement('div');
+            div.className = 'var-row-box';
+            div.innerHTML = `
+                <div class="var-inputs">
+                    <input type="text" placeholder="Peso" value="${w}" class="v-w">
+                    <input type="number" placeholder="Preço" value="${p}" class="v-p">
+                </div>
+                <div class="var-promo-area">
+                    <label><input type="checkbox" class="v-promo" ${isPromo ? 'checked' : ''} onchange="togglePromoField(this)"> Oferta?</label>
+                    <input type="number" placeholder="R$ Promo" value="${promoPrice}" class="v-promo-price" style="display: ${isPromo ? 'block' : 'none'}">
+                </div>
+                <button class="btn-del-var" onclick="this.parentElement.remove()">remover</button>`;
+            document.getElementById('vars').appendChild(div);
+        };
+
+        window.togglePromoField = (el) => {
+            const priceInput = el.parentElement.parentElement.querySelector('.v-promo-price');
+            priceInput.style.display = el.checked ? 'block' : 'none';
+        };
+
+        window.saveProduct = async () => {
+            const btn = document.getElementById('btn-main-save');
+            const varRows = Array.from(document.querySelectorAll('.var-row-box'));
+            if(varRows.length === 0) return alert("Adicione um peso/preço!");
+
+            const variations = varRows.map(r => ({
+                weight: r.querySelector('.v-w').value,
+                price: parseFloat(r.querySelector('.v-p').value) || 0,
+                isPromo: r.querySelector('.v-promo').checked,
+                promoPrice: r.querySelector('.v-promo').checked ? parseFloat(r.querySelector('.v-promo-price').value) : null
+            }));
+
+            btn.innerText = "SALVANDO...";
+            btn.disabled = true;
+
+            const data = {
+                code: document.getElementById('code').value,
+                name: document.getElementById('name').value,
+                desc: document.getElementById('desc').value,
+                cat: document.getElementById('cat-select').value,
+                stock: document.getElementById('stock').value,
+                variations: variations,
+                updatedAt: serverTimestamp()
+            };
+
+            if(photoBase64) data.img = photoBase64;
+            
+            try {
+                if(editId) await updateDoc(doc(db, "produtos", editId), data);
+                else { data.order = 0; await addDoc(collection(db, "produtos"), data); }
+                alert("Sucesso!");
+                location.reload();
+            } catch (e) { alert("Erro ao salvar."); btn.disabled = false; btn.innerText = "SALVAR PRODUTO"; }
+        };
+
+        window.editProd = (id) => {
+            const p = window.prods.find(i => i.id === id);
+            editId = id;
+            document.getElementById('code').value = p.code || "";
+            document.getElementById('name').value = p.name;
+            document.getElementById('desc').value = p.desc || "";
+            document.getElementById('stock').value = p.stock || "";
+            document.getElementById('cat-select').value = p.cat;
+            document.getElementById('vars').innerHTML = "";
+            photoBase64 = p.img || "";
+            if(p.variations) p.variations.forEach(v => addVar(v.weight, v.price, v.isPromo, v.promoPrice || ""));
+            openTab('tab-cadastro');
+            window.scrollTo(0,0);
+        };
+
+        window.handleLogo = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                await setDoc(doc(db, "config", "layout"), { logo: event.target.result }, { merge: true });
+                alert("Logo atualizada!");
+            };
+            reader.readAsDataURL(file);
+        };
+
+        async function saveOrder(col, listEl) {
+            const items = listEl.querySelectorAll('.item');
+            for(let i=0; i < items.length; i++) {
+                await updateDoc(doc(db, col, items[i].dataset.id), { order: i });
+            }
+        }
+
+        window.deleteItem = async (col, id) => { if(confirm("Excluir item?")) await deleteDoc(doc(db, col, id)); };
     </script>
 </body>
 </html>
