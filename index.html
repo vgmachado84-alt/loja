@@ -40,15 +40,11 @@
             renderCatBar(cats);
         });
 
-        // LÓGICA DE PRODUTOS ATUALIZADA
         onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
             window.prods = snap.docs.map(d => {
                 const p = { id: d.id, ...d.data() };
-                // Verifica se a promoção está ativa no Firebase
-                p.onPromo = String(p.isPromo) === 'true';
-                p.priceOriginal = Number(p.price);
-                // Se houver preço promocional, usa ele, senão usa o normal
-                p.finalPrice = (p.onPromo && p.promoPrice) ? Number(p.promoPrice) : Number(p.price);
+                p.onPromo = String(p.isPromo) === 'true' || (p.promoPrice && Number(p.promoPrice) > 0);
+                p.finalPrice = p.onPromo ? Number(p.promoPrice) : Number(p.price);
                 return p;
             });
             renderGrid();
@@ -60,11 +56,9 @@
                 cats.map(c => `<button class="cat-chip ${currentCat === c ? 'active' : ''}" onclick="filterCat('${c}')">${c}</button>`).join('');
         }
 
-        window.filterCat = (c) => { currentCat = c; renderGrid(); renderCatBar(window.lastCats || []); };
-        
+        window.filterCat = (c) => { currentCat = c; renderGrid(); onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => renderCatBar(snap.docs.map(d => d.data().nome))); };
         window.handleSearch = (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); };
 
-        // RENDERIZAÇÃO DO GRID COM ETIQUETA E PREÇO RISCADO
         function renderGrid() {
             let filtered = window.prods || [];
             if(currentCat === "Promoções") filtered = filtered.filter(p => p.onPromo);
@@ -81,12 +75,7 @@
                         <h4>${p.name}</h4>
                         <div class="price-container">
                             ${temVariacoes ? '<span class="price-label">A partir de</span>' : ''}
-                            ${p.onPromo ? `
-                                <span style="text-decoration: line-through; color: #999; font-size: 11px;">R$ ${p.priceOriginal.toFixed(2)}</span>
-                                <span class="price" style="color: #e74c3c;">R$ ${p.finalPrice.toFixed(2)}</span>
-                            ` : `
-                                <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
-                            `}
+                            <span class="price">R$ ${p.finalPrice.toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
@@ -116,7 +105,6 @@
 
         window.selectVar = (idx) => {
             const v = selectedProduct.variations[idx];
-            // Se o produto está em promo, o preço da variação também reflete isso (ajuste conforme sua regra de negócio)
             selectedVar = { ...v, price: selectedProduct.onPromo ? selectedProduct.finalPrice : Number(v.price) };
             renderVars(); updateModalUI();
         };
@@ -229,9 +217,9 @@
 
         window.onload = updateBadge;
 
-        // AJUSTADO PARA O DOMÍNIO RAIZ
+        // REGISTRO DO SERVICE WORKER ADICIONADO AQUI
         if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("/service-worker.js");
+            navigator.serviceWorker.register("/loja/service-worker.js");
         }
     </script>
 
@@ -255,7 +243,7 @@
         .card-body { padding: 8px; }
         .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
         
-        .price-container { display: flex; flex-direction: column; height: 40px; justify-content: flex-end; }
+        .price-container { display: flex; flex-direction: column; height: 30px; justify-content: flex-end; }
         .price-label { font-size: 10px; color: #888; margin-bottom: -2px; }
         .price { color: var(--orange); font-weight: bold; font-size: 16px; }
         
