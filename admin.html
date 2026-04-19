@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Center Pet</title>
+    <title>Painel Admin - Center Pet</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // SUA CONFIGURAÇÃO ORIGINAL DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
             authDomain: "birdselect-d96b8.firebaseapp.com",
@@ -21,20 +20,36 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // FUNÇÃO PARA SALVAR PRODUTO
+        // --- SISTEMA DE SENHA ---
+        window.verificarSenha = () => {
+            const senha = document.getElementById('senha-input').value;
+            if(senha === "102030") { // Coloque sua senha aqui
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+            } else {
+                alert("Senha incorreta!");
+            }
+        };
+
+        // --- LÓGICA DE SALVAMENTO ---
         window.saveProduct = async () => {
-            const name = document.getElementById('p-name').value;
-            const img = document.getElementById('p-img').value; // CAMPO DE FOTO AQUI
-            const code = document.getElementById('p-code').value;
-            const desc = document.getElementById('p-desc').value;
-            const cat = document.getElementById('p-cat').value;
-            const stock = Number(document.getElementById('p-stock').value);
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            btn.innerText = "Salvando...";
 
-            const varRows = document.querySelectorAll('.var-row');
-            let variations = [];
+            const product = {
+                name: document.getElementById('p-name').value,
+                img: document.getElementById('p-img').value,
+                code: document.getElementById('p-code').value,
+                cat: document.getElementById('p-cat').value,
+                desc: document.getElementById('p-desc').value,
+                stock: Number(document.getElementById('p-stock').value),
+                variations: [],
+                order: Date.now()
+            };
 
-            varRows.forEach(row => {
-                variations.push({
+            document.querySelectorAll('.var-row').forEach(row => {
+                product.variations.push({
                     weight: row.querySelector('.v-weight').value,
                     price: Number(row.querySelector('.v-price').value),
                     promoPrice: Number(row.querySelector('.v-promo-price').value),
@@ -42,16 +57,20 @@
                 });
             });
 
-            if(!name || !img) return alert("Nome e Foto são obrigatórios!");
+            if(!product.name || !product.img) {
+                alert("Preencha Nome e Foto!");
+                btn.disabled = false;
+                btn.innerText = "SALVAR PRODUTO";
+                return;
+            }
 
             try {
-                await addDoc(collection(db, "produtos"), {
-                    name, img, code, desc, cat, stock, variations, order: Date.now()
-                });
-                alert("Produto salvo com sucesso!");
+                await addDoc(collection(db, "produtos"), product);
+                alert("Produto cadastrado com sucesso!");
                 location.reload();
             } catch (e) {
-                console.error("Erro ao salvar: ", e);
+                alert("Erro ao salvar!");
+                btn.disabled = false;
             }
         };
 
@@ -60,49 +79,69 @@
             const div = document.createElement('div');
             div.className = 'var-row';
             div.innerHTML = `
-                <input type="text" class="v-weight" placeholder="Peso (ex: 10kg)">
+                <input type="text" class="v-weight" placeholder="Peso (ex: 1kg)">
                 <input type="number" class="v-price" placeholder="Preço Normal">
                 <input type="number" class="v-promo-price" placeholder="Preço Promo">
-                <label><input type="checkbox" class="v-is-promo"> Ativar Promo</label>
-                <button onclick="this.parentElement.remove()">X</button>
+                <label style="font-size:10px;"><input type="checkbox" class="v-is-promo"> Promo?</label>
+                <button onclick="this.parentElement.remove()" style="background:red; color:white; border:none; border-radius:4px;">X</button>
             `;
             container.appendChild(div);
         };
     </script>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
-        .form-container { background: white; padding: 20px; border-radius: 10px; max-width: 600px; margin: auto; }
-        input, textarea, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        .var-row { display: flex; gap: 5px; background: #eee; padding: 10px; margin: 5px 0; border-radius: 5px; align-items: center; }
-        .var-row input { margin: 0; padding: 5px; }
-        .btn-main { background: #ff7800; color: white; border: none; padding: 15px; width: 100%; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        .btn-add { background: #333; color: white; border: none; padding: 10px; margin: 10px 0; cursor: pointer; border-radius: 5px; }
+        :root { --orange: #ff7800; }
+        body { font-family: sans-serif; background: #f0f2f1; margin: 0; padding: 20px; }
+        
+        /* Estilo Login */
+        #login-screen { max-width: 300px; margin: 100px auto; text-align: center; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        /* Estilo Admin */
+        #admin-content { display: none; max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .var-row { display: grid; grid-template-columns: 1fr 1fr 1fr 0.6fr 0.4fr; gap: 5px; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 5px; align-items: center; }
+        .var-row input { padding: 5px; margin: 0; font-size: 12px; }
+        .btn-orange { background: var(--orange); color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .btn-add { background: #333; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
-<div class="form-container">
-    <h2>Cadastrar Produto - Center Pet</h2>
-    
-    <input type="text" id="p-name" placeholder="Nome do Produto">
-    <input type="text" id="p-img" placeholder="URL da Foto do Produto"> <input type="text" id="p-code" placeholder="Código">
-    
-    <select id="p-cat">
-        <option value="Cães">Cães</option>
-        <option value="Gatos">Gatos</option>
-        <option value="Aves">Aves</option>
-    </select>
-
-    <textarea id="p-desc" placeholder="Descrição"></textarea>
-    <input type="number" id="p-stock" placeholder="Estoque">
-
-    <div id="vars-container">
-        <p><b>Variações de Preço:</b></p>
+    <div id="login-screen">
+        <img src="https://via.placeholder.com/100?text=Pet" style="margin-bottom:20px; border-radius:50%;">
+        <h3>Acesso Restrito</h3>
+        <input type="password" id="senha-input" placeholder="Digite a Senha">
+        <button class="btn-orange" onclick="verificarSenha()">ENTRAR</button>
     </div>
-    <button class="btn-add" onclick="addVarRow()">+ Adicionar Peso/Preço</button>
 
-    <button class="btn-main" onclick="saveProduct()">SALVAR PRODUTO</button>
-</div>
+    <div id="admin-content">
+        <h2 style="color:var(--orange); border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Produto</h2>
+        
+        <label>Nome do Produto</label>
+        <input type="text" id="p-name" placeholder="Ex: Ração Magnus 15kg">
+        
+        <label>URL da Imagem</label>
+        <input type="text" id="p-img" placeholder="Link da foto (ImgBB, Google, etc)">
+        
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="p-code" placeholder="Código/SKU">
+            <select id="p-cat">
+                <option value="Cães">Cães</option>
+                <option value="Gatos">Gatos</option>
+                <option value="Pássaros">Pássaros</option>
+                <option value="Acessórios">Acessórios</option>
+            </select>
+        </div>
+
+        <textarea id="p-desc" placeholder="Descrição curta do produto"></textarea>
+        <input type="number" id="p-stock" placeholder="Estoque Inicial">
+
+        <h4 style="margin: 20px 0 10px;">Variações e Preços</h4>
+        <div id="vars-container">
+            </div>
+        <button class="btn-add" onclick="addVarRow()">+ Adicionar Peso</button>
+
+        <button class="btn-orange" id="btn-save" onclick="saveProduct()">SALVAR PRODUTO</button>
+    </div>
 
 </body>
 </html>
