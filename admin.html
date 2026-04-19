@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Center Pet - Oficial</title>
+    <title>Admin Center Pet - Completo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root { --green: #2d5a27; --orange: #ff7800; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 50px; }
         
-        /* LOGIN */
         #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #eee; }
         .login-card { background: white; padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
@@ -25,23 +24,21 @@
         .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
-        /* ÁREA DE FOTO */
-        .upload-area { border: 2px dashed var(--green); padding: 20px; text-align: center; border-radius: 10px; margin-bottom: 10px; cursor: pointer; background: #f9fff9; }
-        .progress-bar { height: 10px; background: #eee; border-radius: 10px; margin-bottom: 15px; display: none; overflow: hidden; }
+        .upload-area { border: 2px dashed var(--green); padding: 15px; text-align: center; border-radius: 10px; margin-bottom: 10px; cursor: pointer; background: #f9fff9; }
+        .progress-bar { height: 8px; background: #eee; border-radius: 10px; margin-bottom: 10px; display: none; overflow: hidden; }
         #progresso-fill { height: 100%; background: var(--orange); width: 0%; transition: 0.2s; }
 
-        /* LISTA DE PRODUTOS */
         .item { display: flex; justify-content: space-between; background: white; padding: 12px; margin-top: 8px; border-radius: 8px; align-items: center; border: 1px solid #eee; }
-        .prod-info { flex: 1; font-size: 13px; display: flex; align-items: center; }
-        .img-lista { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; margin-right: 12px; background: #f0f0f0; border: 1px solid #ddd; }
-        .prod-text b { color: var(--green); display: block; font-size: 15px; margin-bottom: 3px; }
+        .img-lista { width: 55px; height: 55px; border-radius: 6px; object-fit: cover; margin-right: 12px; background: #eee; }
+        .prod-text b { color: var(--green); display: block; font-size: 14px; }
         
-        .tag { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px; text-transform: uppercase; }
-        .tag-price { background: #e8f5e9; color: #2e7d32; font-size: 12px; }
+        .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px; margin-top: 4px; }
+        .tag-price { background: #e8f5e9; color: #2e7d32; }
         .tag-info { background: #f0f2f5; color: #4b5563; border: 1px solid #ddd; }
 
-        .btn-acao { background: #eee; border: none; padding: 12px; border-radius: 8px; cursor: pointer; margin-left: 5px; font-size: 16px; }
+        .btn-acao { background: #eee; border: none; padding: 10px; border-radius: 8px; cursor: pointer; margin-left: 5px; }
         .var-box { background: #f9f9f9; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
+        .promo-input { border: 1px solid red !important; display: none; }
     </style>
 </head>
 <body>
@@ -49,9 +46,9 @@
     <div id="login-screen">
         <div class="login-card">
             <h2 style="color:var(--green)">CENTER PET ADMIN</h2>
-            <input type="email" id="email" placeholder="Seu e-mail">
-            <input type="password" id="pass" placeholder="Sua senha">
-            <button id="btn-login">ACESSAR PAINEL</button>
+            <input type="email" id="email" placeholder="E-mail">
+            <input type="password" id="pass" placeholder="Senha">
+            <button id="btn-login">ENTRAR</button>
         </div>
     </div>
 
@@ -63,47 +60,39 @@
             <button class="tab-btn" onclick="deslogar()" style="color:#ffcccc">SAIR</button>
         </div>
 
-        <div id="t-pedidos" class="tab-content active">
-            <h3 style="color:var(--green)">Últimos Pedidos</h3>
-            <div id="lista-pedidos"></div>
-        </div>
-
-        <div id="t-produtos" class="tab-content">
+        <div id="t-produtos" class="tab-content active">
             <div class="box">
-                <h3 id="form-title" style="margin-top:0; color:var(--green)">Gerenciar Produto</h3>
+                <h3 style="margin-top:0; color:var(--green)">Cadastrar / Editar</h3>
                 
                 <div class="upload-area" onclick="document.getElementById('file-input').click()">
-                    <span id="upload-status">📷 Selecionar Foto da Galeria</span>
+                    <span id="upload-status">📷 Carregar Foto do Produto</span>
                     <input type="file" id="file-input" accept="image/*" style="display:none">
                 </div>
                 <div class="progress-bar" id="p-bar"><div id="progresso-fill"></div></div>
-                
                 <input type="hidden" id="p-img">
-                
+
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="p-code" placeholder="Código/Ref">
-                    <input type="number" id="p-stock" placeholder="Estoque Atual">
+                    <input type="text" id="p-code" placeholder="Cód/Ref">
+                    <input type="number" id="p-stock" placeholder="Estoque">
                 </div>
-                
                 <input type="text" id="p-name" placeholder="Nome do Produto">
-                <textarea id="p-desc" placeholder="Descrição detalhada..." rows="3"></textarea>
-                
-                <label style="font-size:12px; color:#666">Categoria:</label>
+                <textarea id="p-desc" placeholder="Descrição..."></textarea>
                 <select id="p-cat"></select>
                 
                 <div id="p-vars-area"></div>
-                <button onclick="addVarInput()" style="width:100%; padding:10px; border:2px dashed var(--green); background:none; color:var(--green); font-weight:bold; margin-bottom: 15px; cursor: pointer;">+ Adicionar Variação (Peso/Preço)</button>
+                <button onclick="addVarInput()" style="width:100%; padding:10px; border:1px solid var(--green); background:none; color:var(--green); font-weight:bold; margin-bottom:15px;">+ Add Peso e Preço</button>
                 
-                <button id="btn-save-prod" style="width:100%; padding:18px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; font-size:16px;">SALVAR PRODUTO AGORA</button>
+                <button id="btn-save-prod" style="width:100%; padding:15px; background:var(--green); color:white; border:none; border-radius:10px; font-weight:bold;">SALVAR PRODUTO</button>
             </div>
-            
             <div id="lista-produtos"></div>
         </div>
 
+        <div id="t-pedidos" class="tab-content"><div id="lista-pedidos"></div></div>
+        
         <div id="t-categorias" class="tab-content">
             <div class="box">
-                <input type="text" id="n-cat" placeholder="Nome da nova categoria">
-                <button onclick="addCategoria()" style="width:100%; padding:12px; background:var(--green); color:white; border:none; border-radius:8px; font-weight:bold;">CRIAR CATEGORIA</button>
+                <input type="text" id="n-cat" placeholder="Nova Categoria">
+                <button onclick="addCategoria()" style="width:100%; padding:10px; background:var(--green); color:white; border:none;">ADICIONAR</button>
             </div>
             <div id="lista-categorias"></div>
         </div>
@@ -132,105 +121,90 @@
 
         const fMoeda = (v) => Number(v).toLocaleString('pt-br', {style: 'currency', currency: 'BRL'});
 
-        // LOGIN FUNCIONAL
+        // Login
         document.getElementById('btn-login').onclick = () => {
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('pass').value;
-            signInWithEmailAndPassword(auth, email, pass).catch(() => alert("E-mail ou senha incorretos."));
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('pass').value;
+            signInWithEmailAndPassword(auth, e, p).catch(() => alert("Erro no login"));
         };
 
         onAuthStateChanged(auth, user => {
             if(user) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('admin-wrapper').style.display = 'block';
-                carregarTudo();
+                document.getElementById('login-screen').style.display='none';
+                document.getElementById('admin-wrapper').style.display='block';
+                carregarDados();
             } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('admin-wrapper').style.display = 'none';
+                document.getElementById('login-screen').style.display='flex';
+                document.getElementById('admin-wrapper').style.display='none';
             }
         });
 
-        // SISTEMA DE UPLOAD DE FOTO
+        // Upload Foto
         document.getElementById('file-input').onchange = e => {
             const file = e.target.files[0];
             if(!file) return;
-            
-            const status = document.getElementById('upload-status');
-            const pBar = document.getElementById('p-bar');
-            const fill = document.getElementById('progresso-fill');
-            
-            status.innerText = "⏳ Subindo foto...";
-            pBar.style.display = 'block';
-            
-            const sRef = ref(storage, 'produtos/' + Date.now() + "_" + file.name);
+            document.getElementById('p-bar').style.display = 'block';
+            const sRef = ref(storage, 'produtos/' + Date.now());
             const task = uploadBytesResumable(sRef, file);
-            
             task.on('state_changed', 
-                s => fill.style.width = (s.bytesTransferred / s.totalBytes) * 100 + "%",
-                err => alert("Erro ao subir imagem. Verifique o Storage."),
+                s => document.getElementById('progresso-fill').style.width = (s.bytesTransferred/s.totalBytes)*100+"%",
+                err => alert("Erro Storage"),
                 () => getDownloadURL(task.snapshot.ref).then(url => {
                     document.getElementById('p-img').value = url;
-                    status.innerHTML = "✅ <b>FOTO CARREGADA COM SUCESSO!</b>";
-                    pBar.style.display = 'none';
+                    document.getElementById('upload-status').innerText = "✅ Foto Ok!";
                 })
             );
         };
 
-        function carregarTudo() {
-            // CATEGORIAS
-            onSnapshot(query(collection(db, "categorias"), orderBy("order", "asc")), snap => {
-                document.getElementById('lista-categorias').innerHTML = snap.docs.map(d => `
-                    <div class="item" data-id="${d.id}">
-                        <span>☰ ${d.data().nome}</span>
-                        <button onclick="apagar('categorias','${d.id}')" class="btn-acao">🗑️</button>
-                    </div>`).join('');
-                document.getElementById('p-cat').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
-            });
-
-            // PRODUTOS (COM CÓDIGO E ESTOQUE VISÍVEL)
+        function carregarDados() {
             onSnapshot(query(collection(db, "produtos"), orderBy("order", "asc")), snap => {
                 window.meusProds = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 document.getElementById('lista-produtos').innerHTML = window.meusProds.map(p => `
-                    <div class="item" data-id="${p.id}">
-                        <div class="prod-info">
-                            <img src="${p.img || ''}" class="img-lista" onerror="this.src='https://placehold.co/60x60?text=Sem+Foto'">
+                    <div class="item">
+                        <div style="display:flex; align-items:center;">
+                            <img src="${p.img || ''}" class="img-lista">
                             <div class="prod-text">
-                                <b>${p.name || p.nome}</b>
-                                <span class="tag tag-info">REF: ${p.code || 'S/N'}</span>
-                                <span class="tag tag-info">ESTOQUE: ${p.stock || 0}</span>
+                                <b>${p.name}</b>
+                                <span class="tag tag-info">Cód: ${p.code || '---'} | Est: ${p.stock || 0}</span>
                                 <span class="tag tag-price">${fMoeda(p.variations?.[0]?.price || 0)}</span>
                             </div>
                         </div>
-                        <button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button>
-                        <button onclick="apagar('produtos','${p.id}')" class="btn-acao">🗑️</button>
+                        <div>
+                            <button onclick="editarProd('${p.id}')" class="btn-acao">✏️</button>
+                            <button onclick="apagar('produtos','${p.id}')" class="btn-acao">🗑️</button>
+                        </div>
                     </div>`).join('');
             });
 
-            // PEDIDOS
-            onSnapshot(query(collection(db, "pedidos"), orderBy("timestamp", "desc")), snap => {
-                document.getElementById('lista-pedidos').innerHTML = snap.docs.map(d => `
-                    <div class="box item">
-                        <div><b>Cliente: ${d.data().cliente}</b><br><small>Total: ${fMoeda(d.data().total)}</small></div>
-                    </div>`).join('');
+            onSnapshot(collection(db, "categorias"), snap => {
+                document.getElementById('lista-categorias').innerHTML = snap.docs.map(d => `<div class="item"><span>${d.data().nome}</span><button onclick="apagar('categorias','${d.id}')" class="btn-acao">🗑️</button></div>`).join('');
+                document.getElementById('p-cat').innerHTML = snap.docs.map(d => `<option value="${d.data().nome}">${d.data().nome}</option>`).join('');
             });
         }
 
-        window.addVarInput = (w="", p="") => {
+        // VARIAÇÃO COM PROMOÇÃO
+        window.addVarInput = (w="", p="", isP=false, pp="") => {
             const div = document.createElement('div');
             div.className = 'var-box';
             div.innerHTML = `
                 <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="Peso (ex: 1kg)" class="v-w" value="${w}">
-                    <input type="text" placeholder="Preço (ex: 10.00)" class="v-p" value="${p}">
+                    <input type="text" placeholder="Peso" class="v-w" value="${w}">
+                    <input type="text" placeholder="Preço" class="v-p" value="${p}">
                 </div>
-                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:11px; cursor:pointer;">[remover variação]</button>`;
+                <label style="font-size:11px; color:red;">
+                    <input type="checkbox" class="v-check" ${isP ? 'checked' : ''} onchange="this.parentElement.nextElementSibling.style.display = this.checked ? 'block' : 'none'"> Aplicar Promoção
+                </label>
+                <input type="text" placeholder="Preço Promocional" class="v-pp promo-input" value="${pp}" style="display:${isP?'block':'none'}">
+                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; font-size:10px;">Remover</button>`;
             document.getElementById('p-vars-area').appendChild(div);
         };
 
         document.getElementById('btn-save-prod').onclick = async () => {
             const vars = Array.from(document.querySelectorAll('.var-box')).map(r => ({
                 weight: r.querySelector('.v-w').value,
-                price: parseFloat(r.querySelector('.v-p').value.replace(',', '.')) || 0
+                price: parseFloat(r.querySelector('.v-p').value.replace(',','.')) || 0,
+                isPromo: r.querySelector('.v-check').checked,
+                promoPrice: r.querySelector('.v-check').checked ? parseFloat(r.querySelector('.v-pp').value.replace(',','.')) : null
             }));
 
             const dts = {
@@ -240,67 +214,35 @@
                 stock: parseInt(document.getElementById('p-stock').value) || 0,
                 desc: document.getElementById('p-desc').value,
                 cat: document.getElementById('p-cat').value,
-                variations: vars, 
-                updatedAt: serverTimestamp()
+                variations: vars, updatedAt: serverTimestamp()
             };
 
             if(editId) await updateDoc(doc(db, "produtos", editId), dts);
             else { dts.order = 0; await addDoc(collection(db, "produtos"), dts); }
             
-            limparForm();
-            alert("Produto Salvo!");
+            location.reload(); 
         };
 
         window.editarProd = (id) => {
             const p = window.meusProds.find(x => x.id === id);
             editId = id;
-            document.getElementById('p-name').value = p.name || p.nome || "";
+            document.getElementById('p-name').value = p.name;
             document.getElementById('p-img').value = p.img || "";
             document.getElementById('p-code').value = p.code || "";
             document.getElementById('p-stock').value = p.stock || 0;
             document.getElementById('p-desc').value = p.desc || "";
-            document.getElementById('p-cat').value = p.cat || "";
+            document.getElementById('p-cat').value = p.cat;
             document.getElementById('p-vars-area').innerHTML = "";
-            if(p.variations) p.variations.forEach(v => addVarInput(v.weight, v.price));
-            document.getElementById('upload-status').innerText = "✅ Foto Atual Carregada";
+            if(p.variations) p.variations.forEach(v => addVarInput(v.weight, v.price, v.isPromo, v.promoPrice));
             window.scrollTo(0,0);
         };
 
-        function limparForm() {
-            editId = null;
-            document.getElementById('p-name').value = "";
-            document.getElementById('p-img').value = "";
-            document.getElementById('p-code').value = "";
-            document.getElementById('p-stock').value = "";
-            document.getElementById('p-desc').value = "";
-            document.getElementById('p-vars-area').innerHTML = "";
-            document.getElementById('p-bar').style.display = 'none';
-            document.getElementById('upload-status').innerText = "📷 Selecionar Foto da Galeria";
-        }
-
-        window.addCategoria = async () => {
-            const n = document.getElementById('n-cat').value;
-            if(n) await addDoc(collection(db, "categorias"), { nome: n, order: 0 });
-            document.getElementById('n-cat').value = "";
-        };
-
-        window.apagar = async (c, id) => { if(confirm("Deseja mesmo apagar?")) await deleteDoc(doc(db, c, id)); };
+        window.apagar = async (c, id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, c, id)); };
         window.deslogar = () => signOut(auth);
-        
         window.openTab = (id) => {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            event.currentTarget.classList.add('active');
         };
-
-        Sortable.create(document.getElementById('lista-categorias'), { animation: 150, onEnd: () => salvarOrdem("categorias", "lista-categorias") });
-        Sortable.create(document.getElementById('lista-produtos'), { animation: 150, onEnd: () => salvarOrdem("produtos", "lista-produtos") });
-
-        async function salvarOrdem(col, listId) {
-            const itens = document.getElementById(listId).querySelectorAll('.item');
-            for(let i=0; i<itens.length; i++) await updateDoc(doc(db, col, itens[i].dataset.id), { order: i });
-        }
     </script>
 </body>
 </html>
