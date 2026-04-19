@@ -9,7 +9,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAfh8GKuOt7Jqeg1GJJLaK54KFydQhYgV0",
@@ -61,7 +61,9 @@
             document.getElementById('grid').innerHTML = filtered.map(p => {
                 const displayVar = p.variations.find(v => v.isPromo) || p.variations[0];
                 const hasPromo = p.variations.some(v => v.isPromo);
-                
+                const isPromo = displayVar.isPromo;
+                const priceVal = isPromo ? displayVar.promoPrice : displayVar.price;
+
                 return `
                 <div class="card" onclick="openProduct('${p.id}')">
                     ${hasPromo ? '<span class="promo-badge">PROMOÇÃO</span>' : ''}
@@ -69,8 +71,9 @@
                     <div class="card-body">
                         <h4>${p.name}</h4>
                         <div class="price-container">
-                            ${displayVar.isPromo ? `<span class="old-price">R$ ${displayVar.price.toFixed(2)}</span>` : ''}
-                            <span class="price ${displayVar.isPromo ? 'promo' : ''}">R$ ${(displayVar.isPromo ? displayVar.promoPrice : displayVar.price).toFixed(2)}</span>
+                            <span class="price-label">${p.variations.length > 1 ? 'A partir de' : ''}</span>
+                            ${isPromo ? `<span class="old-price">R$ ${displayVar.price.toFixed(2)}</span>` : ''}
+                            <span class="price ${isPromo ? 'promo' : ''}">R$ ${Number(priceVal).toFixed(2)}</span>
                         </div>
                     </div>
                     <button class="add-btn">+</button>
@@ -86,12 +89,29 @@
             document.getElementById('m-img').src = selectedProduct.img || '';
             document.getElementById('m-title').innerText = selectedProduct.name;
             document.getElementById('m-desc').innerText = selectedProduct.desc || '';
-            document.getElementById('m-code').innerText = "Cód: " + (selectedProduct.code || '--');
-            document.getElementById('m-stock').innerText = "Estoque: " + (selectedProduct.stock || 0);
             
+            document.getElementById('m-info-row').innerHTML = `
+                <span>Cód: ${selectedProduct.code || '--'}</span>
+                <span style="color:#ff7800; font-weight:bold;">Estoque: ${selectedProduct.stock || 0}</span>
+            `;
+            
+            const isSingle = selectedProduct.variations.length <= 1;
+            document.getElementById('btn-add-outro').style.display = isSingle ? 'none' : 'block';
+            document.getElementById('m-temp-area').style.display = isSingle ? 'none' : 'block';
+
             renderVars(); 
             updateModalUI();
             document.getElementById('p-modal').classList.add('active');
+        };
+
+        window.shareProduct = () => {
+            const text = `Confira este produto na Center Pet: ${selectedProduct.name}`;
+            const url = window.location.href;
+            if (navigator.share) {
+                navigator.share({ title: 'Center Pet', text: text, url: url });
+            } else {
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + url)}`);
+            }
         };
 
         window.changeQty = (val) => {
@@ -110,7 +130,7 @@
                 const valorFinal = v.isPromo ? v.promoPrice : v.price;
                 return `<button class="var-btn ${selectedVar.weight === v.weight ? 'active' : ''}" onclick="selectVar(${idx})">
                     <span>${v.weight}</span>
-                    <small>R$ ${valorFinal.toFixed(2)}</small>
+                    <small>R$ ${Number(valorFinal).toFixed(2)}</small>
                 </button>`;
             }).join('');
         }
@@ -130,25 +150,19 @@
 
         window.addTemp = () => { 
             const finalP = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
-            tempCart.push({ ...selectedVar, finalPrice: finalP, qty, name: selectedProduct.name }); 
+            tempCart.push({ ...selectedVar, finalPrice: finalP, qty, name: selectedProduct.name, code: selectedProduct.code, prodId: selectedProduct.id }); 
             qty = 1; updateModalUI(); 
         };
         
         window.confirmToMain = () => {
-            if(tempCart.length === 0) addTemp();
-            tempCart.forEach(item => { mainCart.push({ ...item, price: item.finalPrice }); });
+            if(tempCart.length === 0) {
+                const finalP = selectedVar.isPromo ? selectedVar.promoPrice : selectedVar.price;
+                mainCart.push({ ...selectedVar, price: finalP, qty, name: selectedProduct.name, code: selectedProduct.code, prodId: selectedProduct.id });
+            } else {
+                tempCart.forEach(item => { mainCart.push({ ...item, price: item.finalPrice }); });
+            }
             saveCart();
             document.getElementById('p-modal').classList.remove('active');
-        };
-
-        window.shareProduct = () => {
-            const text = `Confira este produto na Center Pet: ${selectedProduct.name}`;
-            const url = window.location.href;
-            if (navigator.share) {
-                navigator.share({ title: 'Center Pet', text: text, url: url });
-            } else {
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + url)}`);
-            }
         };
 
         function saveCart() {
@@ -186,12 +200,33 @@
             saveCart(); showMainCart();
         };
 
-        window.sendZap = () => {
-            const n = document.getElementById('u-nome').value, c = document.getElementById('u-cidade').value;
+        async function updateStock() {
+            for (const item of mainCart) {
+                if (item.prodId) {
+                    const docRef = doc(db, "produtos", item.prodId);
+                    await updateDoc(docRef, { stock: increment(-item.qty) });
+                }
+            }
+        }
+
+        window.sendZap = async () => {
+            const n = document.getElementById('u-nome').value, 
+                  c = document.getElementById('u-cidade').value,
+                  obs = document.getElementById('u-obs').value;
             if(!n || !c) return alert("Preencha Nome e Cidade!");
-            let t = `*CENTER PET - PEDIDO*\nCliente: ${n}\nCidade: ${c}\n\n`;
-            mainCart.forEach(i => { t += `📦 *${i.name}* (${i.weight})\n${i.qty}x R$ ${i.price.toFixed(2)} = R$ ${(i.qty * i.price).toFixed(2)}\n\n`; });
+            
+            await updateStock();
+
+            let t = `*CENTER PET - PEDIDO*\nCliente: ${n}\nCidade: ${c}\n`;
+            if(obs) t += `Obs: ${obs}\n`;
+            t += `\n`;
+            mainCart.forEach(i => { 
+                t += `📦 *${i.name}* (${i.weight})\n`;
+                t += `Cód: ${i.code || '--'}\n`;
+                t += `${i.qty}x R$ ${i.price.toFixed(2)} = R$ ${(i.qty * i.price).toFixed(2)}\n\n`; 
+            });
             t += `*TOTAL: R$ ${document.getElementById('total').innerText}*`;
+            
             window.open(`https://wa.me/5569999760742?text=${encodeURIComponent(t)}`);
             mainCart = []; saveCart(); location.reload();
         };
@@ -212,24 +247,25 @@
         .cat-chip.active { background: var(--orange); color: white; }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
-        .card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; position: relative; }
-        .card-img { height: 150px; width: 100%; background: #f9f9f9; }
+        .card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; position: relative; display: flex; flex-direction: column; min-height: 250px; }
+        .card-img { height: 150px; width: 100%; background: white; } /* Fundo branco no grid */
         .card img { width: 100%; height: 100%; object-fit: contain; }
-        .card-body { padding: 8px; }
-        .card h4 { margin: 0 0 5px 0; font-size: 12px; height: 30px; overflow: hidden; }
+        .card-body { padding: 8px; flex-grow: 1; display: flex; flex-direction: column; }
+        .card h4 { margin: 0 0 5px 0; font-size: 13px; height: 32px; overflow: hidden; color: #333; line-height: 1.2; }
         
-        .price-container { display: flex; flex-direction: column; min-height: 40px; }
-        .old-price { text-decoration: line-through; color: #999; font-size: 10px; }
-        .price { color: var(--orange); font-weight: bold; font-size: 15px; }
+        .price-container { display: flex; flex-direction: column; margin-top: auto; }
+        .price-label { font-size: 10px; color: #888; margin-bottom: 2px; height: 12px; }
+        .old-price { text-decoration: line-through; color: #999; font-size: 11px; }
+        .price { color: var(--orange); font-weight: bold; font-size: 16px; }
         .price.promo { color: #e74c3c; }
-        .promo-badge { position: absolute; top: 5px; left: 5px; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; }
+        .promo-badge { position: absolute; top: 5px; left: 5px; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; z-index: 10; }
         
         .add-btn { position: absolute; bottom: 8px; right: 8px; background: var(--orange); color: white; border: none; width: 28px; height: 28px; border-radius: 8px; font-size: 20px; }
         
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; transform: translateY(100%); transition: 0.3s; z-index: 2000; overflow-y: auto; }
         .modal.active { transform: translateY(0); }
         .modal-inner { padding: 20px; }
-        #m-img { width:100%; height:250px; object-fit:contain; background: #f9f9f9; border-radius:15px; }
+        #m-img { width:100%; height:250px; object-fit:contain; background: white; border-radius:15px; } /* Fundo branco na imagem do modal */
 
         .var-btn { flex: 1; border: 2px solid #ddd; border-radius: 10px; padding: 10px; background: white; display: flex; flex-direction: column; align-items: center; margin: 4px; min-width: 80px; }
         .var-btn.active { border-color: var(--orange); background: #fff5ee; }
@@ -238,10 +274,6 @@
         .btn-buy { background: var(--orange); color: white; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 16px; margin-top: 15px; cursor: pointer; }
         .badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .cart-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; justify-content: space-between; }
-        
-        /* Botões flutuantes */
-        .btn-share { position: absolute; top: 20px; right: 20px; background: #eee; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
-        .whatsapp-float { position: fixed; bottom: 20px; right: 20px; background: #25d366; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 999; text-decoration: none; font-size: 30px; }
     </style>
 </head>
 <body>
@@ -256,18 +288,21 @@
 
     <div class="grid" id="grid"></div>
 
-    <a href="https://wa.me/5569999760742" class="whatsapp-float" target="_blank">🟢</a>
-
     <div id="p-modal" class="modal">
-        <div class="modal-inner" style="position:relative">
-            <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px; margin-bottom:10px;">✕</button>
-            <button class="btn-share" onclick="shareProduct()">📤</button>
+        <div class="modal-inner">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <button onclick="document.getElementById('p-modal').classList.remove('active')" style="border:none; background:#eee; border-radius:50%; width:40px; height:40px;">✕</button>
+                <button onclick="shareProduct()" style="border:none; background:#f5f5f5; border-radius:50%; width:40px; height:40px; font-size:18px; cursor:pointer;">📤</button>
+            </div>
+
+            <div style="background: white; border-radius: 15px; overflow: hidden;"> <img id="m-img" src="">
+            </div>
             
-            <img id="m-img" src="">
-            <h2 id="m-title" style="margin:10px 0;"></h2>
-            <p id="m-desc" style="color:#666; font-size:14px;"></p>
-            <p id="m-code" style="font-size:12px; color:#888;"></p>
-            <p id="m-stock" style="font-size:12px; font-weight:bold; color:var(--orange);"></p>
+            <h2 id="m-title" style="margin:15px 0 5px; font-size:20px;"></h2>
+            
+            <div id="m-info-row" style="display:flex; justify-content:space-between; font-size:12px; color:#888; margin-bottom:10px;"></div>
+            
+            <p id="m-desc" style="color:#666; font-size:14px; margin-bottom:15px;"></p>
             
             <div id="m-vars" style="display:flex; flex-wrap:wrap; margin: 15px 0;"></div>
             
@@ -280,9 +315,12 @@
                 <span id="m-price" style="font-size:22px; font-weight:bold; color:var(--orange)"></span>
             </div>
 
-            <button onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px;">+ ADICIONAR OUTRO PESO</button>
-            <div id="m-temp-list" style="margin-top:15px;"></div>
-            <div style="text-align:right; font-weight:bold; margin-top:10px;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
+            <button id="btn-add-outro" onclick="addTemp()" style="width:100%; padding:12px; margin-top:10px; border:2px dashed var(--orange); background:white; color:var(--orange); font-weight:bold; border-radius:10px; cursor:pointer;">+ ADICIONAR OUTRO PESO</button>
+            
+            <div id="m-temp-area">
+                <div id="m-temp-list" style="margin-top:15px;"></div>
+                <div style="text-align:right; font-weight:bold; margin-top:10px;">Subtotal: R$ <span id="m-subtotal">0.00</span></div>
+            </div>
             
             <button class="btn-buy" onclick="confirmToMain()">CONCLUIR E IR PRO CARRINHO</button>
         </div>
@@ -290,7 +328,7 @@
 
     <div id="c-modal" class="modal">
         <div class="modal-inner">
-            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; color:var(--orange); font-weight:bold; margin-bottom:20px;">⬅ VOLTAR</button>
+            <button onclick="document.getElementById('c-modal').classList.remove('active')" style="border:none; background:none; color:var(--orange); font-weight:bold; margin-bottom:20px; cursor:pointer;">⬅ VOLTAR</button>
             <h2>Meu Carrinho</h2>
             <div id="cart-list"></div>
             <div style="display:flex; justify-content:space-between; margin-top:20px; font-size:20px; font-weight:bold;">
@@ -298,7 +336,8 @@
             </div>
             <input type="text" id="u-nome" class="search-input" style="margin-top:20px;" placeholder="Seu Nome">
             <input type="text" id="u-cidade" class="search-input" style="margin-top:10px;" placeholder="Cidade/Bairro">
-            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:16px; margin-top:20px;">PEDIR NO WHATSAPP</button>
+            <textarea id="u-obs" class="search-input" style="margin-top:10px; height:80px;" placeholder="Observações (ex: Troco para R$ 50, referência de endereço...)"></textarea>
+            <button onclick="sendZap()" style="width:100%; padding:18px; background:#25d366; color:white; border:none; border-radius:15px; font-weight:bold; font-size:16px; margin-top:20px; cursor:pointer;">PEDIR NO WHATSAPP</button>
         </div>
     </div>
 </body>
